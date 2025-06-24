@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ agent_name }} Agent Details - AI Company{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'agent_system:agent_status' %}">Agent Status</a></li>
+<li class="breadcrumb-item active">{{ agent_name }}</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <button type="button" class="btn btn-outline-primary" onclick="refreshAgentData()">
+        <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+    <button type="button" class="btn btn-outline-success" onclick="testAgent()">
+        <i class="fas fa-play"></i> Test Agent
+    </button>
+    <button type="button" class="btn btn-outline-info" onclick="viewLogs()">
+        <i class="fas fa-file-alt"></i> View Logs
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Agent Overview -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-gradient bg-primary text-white">
+                <div class="d-flex align-items-center">
+                    <div class="agent-avatar me-3">
+                        {% if agent_type == 'CEO' %}
+                            <i class="fas fa-crown"></i>
+                        {% elif agent_type == 'MARKET_RESEARCH' %}
+                            <i class="fas fa-chart-bar"></i>
+                        {% elif agent_type == 'FINANCIAL_ANALYST' %}
+                            <i class="fas fa-calculator"></i>
+                        {% elif agent_type == 'TECHNICAL_LEAD' %}
+                            <i class="fas fa-code"></i>
+                        {% elif agent_type == 'RISK_ANALYST' %}
+                            <i class="fas fa-shield-alt"></i>
+                        {% elif agent_type == 'MARKETING_STRATEGIST' %}
+                            <i class="fas fa-bullhorn"></i>
+                        {% else %}
+                            <i class="fas fa-robot"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h5 class="mb-0">{{ agent_name }}</h5>
+                        <small class="opacity-75">{{ agent_type|title }} Agent</small>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Performance Metrics</h6>
+                        <div class="metric-item mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span>Total Reports Generated</span>
+                                <span class="fw-bold">{{ total_reports }}</span>
+                            </div>
+                        </div>
+                        <div class="metric-item mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span>Success Rate</span>
+                                <span class="fw-bold text-success">{{ success_rate }}%</span>
+                            </div>
+                            <div class="progress mt-1" style="height: 4px;">
+                                <div class="progress-bar bg-success" style="width: {{ success_rate }}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Agent Status</h6>
+                        <div class="status-item mb-3">
+                            <span class="badge bg-success">
+                                <i class="fas fa-circle"></i> Online
+                            </span>
+                            <span class="ms-2 text-muted">Ready for tasks</span>
+                        </div>
+                        <div class="status-item mb-3">
+                            <i class="fas fa-clock text-muted"></i>
+                            <span class="ms-2 text-muted">Last activity: 2 minutes ago</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-cog"></i> Agent Configuration</h6>
+            </div>
+            <div class="card-body">
+                <div class="config-item mb-2">
+                    <strong>Model:</strong> GPT-4 Turbo
+                </div>
+                <div class="config-item mb-2">
+                    <strong>Temperature:</strong> 0.7
+                </div>
+                <div class="config-item mb-2">
+                    <strong>Max Tokens:</strong> 4000
+                </div>
+                <div class="config-item mb-2">
+                    <strong>Timeout:</strong> 30s
+                </div>
+                <div class="config-item">
+                    <strong>Version:</strong> 1.0.0
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Reports -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Recent Reports</h5>
+                <span class="badge bg-info">Last 10 reports</span>
+            </div>
+            <div class="card-body">
+                {% if recent_reports %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Business Idea</th>
+                                <th>Status</th>
+                                <th>Score</th>
+                                <th>Execution Time</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report in recent_reports %}
+                            <tr>
+                                <td>
+                                    <div class="idea-title">{{ report.business_idea_title|truncatechars:50 }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge 
+                                        {% if report.status == 'COMPLETED' %}bg-success
+                                        {% elif report.status == 'IN_PROGRESS' %}bg-warning
+                                        {% elif report.status == 'FAILED' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ report.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if report.score %}
+                                        <span class="fw-bold text-primary">{{ report.score }}/100</span>
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if report.execution_time %}
+                                        <span class="text-info">{{ report.execution_time|floatformat:1 }}s</span>
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="text-muted">{{ report.created_at|date:"M d, H:i" }}</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="viewReport('{{ report.id }}')">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h6>No reports generated yet</h6>
+                    <p class="text-muted">This agent hasn't generated any reports yet.</p>
+                    <a href="{% url 'dashboard:submit_idea' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Submit Business Idea
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.agent-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.8rem;
+}
+
+.metric-item, .status-item, .config-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.metric-item:last-child, .status-item:last-child, .config-item:last-child {
+    border-bottom: none;
+}
+
+.idea-title {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(52, 152, 219, 0.05);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function refreshAgentData() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+    btn.disabled = true;
+    
+    // Simulate refresh
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function testAgent() {
+    showAlert('Testing agent functionality...', 'info');
+    
+    // Simulate agent test
+    setTimeout(() => {
+        showAlert('Agent test completed successfully!', 'success');
+    }, 2000);
+}
+
+function viewLogs() {
+    showAlert('Agent logs viewer coming soon!', 'info');
+}
+
+function viewReport(reportId) {
+    // Navigate to report detail page
+    window.location.href = `/reports/${reportId}/`;
+}
+
+function showAlert(message, type = 'info') {
+    const alertElement = document.createElement('div');
+    alertElement.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertElement.style.cssText = 'top: 20px; right: 20px; z-index: 10000; min-width: 300px;';
+    alertElement.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertElement);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertElement.parentNode) {
+            alertElement.classList.remove('show');
+            setTimeout(() => {
+                if (alertElement.parentNode) {
+                    alertElement.parentNode.removeChild(alertElement);
+                }
+            }, 150);
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}Submit Business Idea - AI Company{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Submit Idea</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Submit Your Business Idea for AI Analysis</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="ideaForm">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="title" class="form-label fw-bold">Business Idea Title *</label>
+                        <input type="text" class="form-control" id="title" name="title" 
+                               placeholder="Enter a clear, concise title for your business idea"
+                               required minlength="5" maxlength="255">
+                        <div class="form-text">
+                            Give your business idea a compelling title (5-255 characters)
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="description" class="form-label fw-bold">Detailed Description *</label>
+                        <textarea class="form-control" id="description" name="description" rows="6"
+                                  placeholder="Describe your business idea in detail. Include the problem you're solving, your solution, target customers, and how you plan to make money."
+                                  required minlength="20" maxlength="5000"></textarea>
+                        <div class="form-text">
+                            Provide a comprehensive description (20-5000 characters). The more detail you provide, the better our AI agents can analyze your idea.
+                        </div>
+                        <div id="descriptionCounter" class="text-muted small mt-1">0 characters</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label for="industry" class="form-label fw-bold">Industry</label>
+                            <select class="form-select" id="industry" name="industry">
+                                {% for value, display in industry_choices %}
+                                <option value="{{ value }}" {% if value == 'TECH' %}selected{% endif %}>{{ display }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                Select the primary industry for your business idea
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-4">
+                            <label for="estimated_budget" class="form-label fw-bold">Estimated Budget (USD)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="estimated_budget" name="estimated_budget"
+                                       placeholder="0" min="0" step="1000">
+                            </div>
+                            <div class="form-text">
+                                Estimated initial investment needed (optional)
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="target_market" class="form-label fw-bold">Target Market</label>
+                        <input type="text" class="form-control" id="target_market" name="target_market"
+                               placeholder="e.g., Small businesses, Young professionals, Healthcare providers"
+                               maxlength="255">
+                        <div class="form-text">
+                            Describe your primary target customers (optional)
+                        </div>
+                    </div>
+
+                    <!-- What to Expect Section -->
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading"><i class="fas fa-info-circle"></i> What to Expect</h6>
+                        <p class="mb-2">Once you submit your idea, our AI agents will analyze it from multiple perspectives:</p>
+                        <ul class="mb-0">
+                            <li><strong>Market Research Agent:</strong> Analyzes market opportunity and competition</li>
+                            <li><strong>Financial Analyst:</strong> Evaluates financial viability and projections</li>
+                            <li><strong>Technical Lead:</strong> Assesses technical feasibility and requirements</li>
+                            <li><strong>Risk Analyst:</strong> Identifies potential risks and mitigation strategies</li>
+                            <li><strong>Marketing Strategist:</strong> Develops marketing and customer acquisition plans</li>
+                            <li><strong>CEO Agent:</strong> Provides executive summary and final recommendations</li>
+                        </ul>
+                        <hr>
+                        <p class="mb-0 small">
+                            <i class="fas fa-clock"></i> Analysis typically takes 5-15 minutes depending on complexity.
+                            You'll be able to track progress in real-time.
+                        </p>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'dashboard:dashboard' %}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="fas fa-paper-plane"></i> Submit for Analysis
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tips Section -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-tips"></i> Tips for Better Analysis</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Be Specific</h6>
+                        <p class="small text-muted">Provide concrete details about your solution, target customers, and value proposition.</p>
+                        
+                        <h6>Include Market Context</h6>
+                        <p class="small text-muted">Mention the problem you're solving and why it matters to your target audience.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Business Model Clarity</h6>
+                        <p class="small text-muted">Explain how you plan to generate revenue and what your key activities will be.</p>
+                        
+                        <h6>Realistic Expectations</h6>
+                        <p class="small text-muted">Be honest about challenges and limitations. Our AI agents appreciate transparency.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Character counter for description
+const descriptionField = document.getElementById('description');
+const counter = document.getElementById('descriptionCounter');
+
+descriptionField.addEventListener('input', function() {
+    const length = this.value.length;
+    counter.textContent = `${length} characters`;
+    
+    if (length < 20) {
+        counter.className = 'text-danger small mt-1';
+    } else if (length > 4500) {
+        counter.className = 'text-warning small mt-1';
+    } else {
+        counter.className = 'text-muted small mt-1';
+    }
+});
+
+// Form validation and submission
+document.getElementById('ideaForm').addEventListener('submit', function(e) {
+    const title = document.getElementById('title').value.trim();
+    const description = document.getElementById('description').value.trim();
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (title.length < 5) {
+        e.preventDefault();
+        alert('Title must be at least 5 characters long.');
+        return;
+    }
+    
+    if (description.length < 20) {
+        e.preventDefault();
+        alert('Description must be at least 20 characters long.');
+        return;
+    }
+    
+    // Show loading state
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+    submitBtn.disabled = true;
+});
+
+// Budget formatting
+const budgetField = document.getElementById('estimated_budget');
+budgetField.addEventListener('input', function() {
+    // Remove non-numeric characters except decimal point
+    this.value = this.value.replace(/[^0-9.]/g, '');
+});
+
+// Auto-save draft functionality (optional)
+let autoSaveTimer;
+const formFields = ['title', 'description', 'industry', 'target_market', 'estimated_budget'];
+
+formFields.forEach(fieldId => {
+    const field = document.getElementById(fieldId);
+    field.addEventListener('input', function() {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(saveDraft, 2000); // Save after 2 seconds of inactivity
+    });
+});
+
+function saveDraft() {
+    const draft = {};
+    formFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        draft[fieldId] = field.value;
+    });
+    
+    localStorage.setItem('ideaDraft', JSON.stringify(draft));
+    console.log('Draft saved');
+}
+
+function loadDraft() {
+    const draft = localStorage.getItem('ideaDraft');
+    if (draft) {
+        const draftData = JSON.parse(draft);
+        formFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (draftData[fieldId]) {
+                field.value = draftData[fieldId];
+            }
+        });
+        
+        // Trigger character counter update
+        descriptionField.dispatchEvent(new Event('input'));
+    }
+}
+
+// Load draft on page load
+window.addEventListener('load', loadDraft);
+
+// Clear draft on successful submission
+document.getElementById('ideaForm').addEventListener('submit', function() {
+    localStorage.removeItem('ideaDraft');
+});
+</script>
+{% endblock %}

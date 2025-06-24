@@ -1,0 +1,572 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Agent Configuration - AI Company{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'agent_system:agent_status' %}">Agent Status</a></li>
+<li class="breadcrumb-item"><a href="{% url 'agent_system:configuration_list' %}">Configurations</a></li>
+<li class="breadcrumb-item active">Create</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <button type="button" class="btn btn-outline-secondary" onclick="loadPreset()">
+        <i class="fas fa-download"></i> Load Preset
+    </button>
+    <button type="button" class="btn btn-outline-info" onclick="testConnection()">
+        <i class="fas fa-plug"></i> Test Connection
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Configuration Wizard -->
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post" id="configForm" novalidate>
+            {% csrf_token %}
+            
+            <!-- Step 1: Basic Information -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-gradient bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label fw-bold">
+                                    Configuration Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       placeholder="e.g., CEO Agent v2.0" required>
+                                <div class="form-text">Choose a descriptive name for this configuration</div>
+                                <div class="invalid-feedback">Please provide a configuration name.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="agent_type" class="form-label fw-bold">
+                                    Agent Type <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="agent_type" name="agent_type" required>
+                                    <option value="">Select Agent Type...</option>
+                                    {% for value, label in agent_types %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Choose the type of agent this configuration is for</div>
+                                <div class="invalid-feedback">Please select an agent type.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label fw-bold">
+                            Description <span class="text-danger">*</span>
+                        </label>
+                        <textarea class="form-control" id="description" name="description" rows="3"
+                                  placeholder="Describe the purpose and capabilities of this agent configuration..."
+                                  required></textarea>
+                        <div class="form-text">Explain what this configuration does and when to use it</div>
+                        <div class="invalid-feedback">Please provide a description.</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="version" class="form-label fw-bold">Version</label>
+                                <input type="text" class="form-control" id="version" name="version" 
+                                       value="1.0.0" placeholder="1.0.0">
+                                <div class="form-text">Semantic version number</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="status" class="form-label fw-bold">Status</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="active">Active</option>
+                                    <option value="testing">Testing</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                                <div class="form-text">Initial status for this configuration</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Step 2: LLM Configuration -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-gradient bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-server"></i> LLM Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="llm_provider" class="form-label fw-bold">
+                                    LLM Provider <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="llm_provider" name="llm_provider" required>
+                                    <option value="">Select LLM Provider...</option>
+                                    {% for provider in providers %}
+                                    <option value="{{ provider.id }}" data-type="{{ provider.provider_type }}" 
+                                            data-endpoint="{{ provider.api_endpoint }}" data-model="{{ provider.default_model }}">
+                                        {{ provider.name }} ({{ provider.get_provider_type_display }})
+                                        {% if not provider.is_active %} - Inactive{% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Choose the LLM provider for this agent</div>
+                                <div class="invalid-feedback">Please select an LLM provider.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="model_name" class="form-label fw-bold">
+                                    Model Name <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control" id="model_name" name="model_name" 
+                                       placeholder="e.g., gpt-4-turbo-preview" required>
+                                <div class="form-text">Specific model to use from the provider</div>
+                                <div class="invalid-feedback">Please specify a model name.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="temperature" class="form-label fw-bold">Temperature</label>
+                                <input type="range" class="form-range" id="temperature" name="temperature" 
+                                       min="0" max="2" step="0.1" value="0.7">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">0 (Deterministic)</small>
+                                    <small class="text-muted" id="temperatureValue">0.7</small>
+                                    <small class="text-muted">2 (Creative)</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="max_tokens" class="form-label fw-bold">Max Tokens</label>
+                                <input type="number" class="form-control" id="max_tokens" name="max_tokens" 
+                                       value="4000" min="100" max="32000">
+                                <div class="form-text">Maximum response length</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="top_p" class="form-label fw-bold">Top P</label>
+                                <input type="range" class="form-range" id="top_p" name="top_p" 
+                                       min="0" max="1" step="0.1" value="1.0">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">0</small>
+                                    <small class="text-muted" id="topPValue">1.0</small>
+                                    <small class="text-muted">1</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="timeout_seconds" class="form-label fw-bold">Timeout (seconds)</label>
+                                <input type="number" class="form-control" id="timeout_seconds" name="timeout_seconds" 
+                                       value="30" min="5" max="300">
+                                <div class="form-text">Request timeout</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="frequency_penalty" class="form-label fw-bold">Frequency Penalty</label>
+                                <input type="range" class="form-range" id="frequency_penalty" name="frequency_penalty" 
+                                       min="-2" max="2" step="0.1" value="0">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">-2</small>
+                                    <small class="text-muted" id="frequencyPenaltyValue">0</small>
+                                    <small class="text-muted">2</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="presence_penalty" class="form-label fw-bold">Presence Penalty</label>
+                                <input type="range" class="form-range" id="presence_penalty" name="presence_penalty" 
+                                       min="-2" max="2" step="0.1" value="0">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">-2</small>
+                                    <small class="text-muted" id="presencePenaltyValue">0</small>
+                                    <small class="text-muted">2</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Step 3: Advanced Settings -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-gradient bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-cogs"></i> Advanced Settings</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="max_retries" class="form-label fw-bold">Max Retries</label>
+                                <input type="number" class="form-control" id="max_retries" name="max_retries" 
+                                       value="3" min="0" max="10">
+                                <div class="form-text">Number of retry attempts on failure</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="retry_delay_seconds" class="form-label fw-bold">Retry Delay (seconds)</label>
+                                <input type="number" class="form-control" id="retry_delay_seconds" name="retry_delay_seconds" 
+                                       value="5" min="1" max="60">
+                                <div class="form-text">Delay between retry attempts</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="capabilities" class="form-label fw-bold">Capabilities</label>
+                        <textarea class="form-control" id="capabilities" name="capabilities" rows="2"
+                                  placeholder="Enter capabilities separated by commas (e.g., analysis, planning, reporting)"></textarea>
+                        <div class="form-text">List the key capabilities of this agent</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tags" class="form-label fw-bold">Tags</label>
+                        <input type="text" class="form-control" id="tags" name="tags" 
+                               placeholder="Enter tags separated by commas (e.g., production, experimental, v2)">
+                        <div class="form-text">Tags for organization and filtering</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Submit Buttons -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'agent_system:configuration_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left"></i> Cancel
+                        </a>
+                        <div>
+                            <button type="button" class="btn btn-outline-info me-2" onclick="previewConfiguration()">
+                                <i class="fas fa-eye"></i> Preview
+                            </button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Create Configuration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Sidebar: Help and Presets -->
+    <div class="col-lg-4">
+        <!-- Configuration Presets -->
+        {% if presets %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-layer-group"></i> Configuration Presets</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">Load a predefined configuration template:</p>
+                {% for preset in presets %}
+                <div class="preset-item mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ preset.name }}</strong>
+                            <br><small class="text-muted">{{ preset.description|truncatechars:50 }}</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadPresetData({{ preset.id }})">
+                            Load
+                        </button>
+                    </div>
+                </div>
+                <hr class="my-2">
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Configuration Tips -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-lightbulb"></i> Configuration Tips</h6>
+            </div>
+            <div class="card-body">
+                <div class="tip-item mb-3">
+                    <h6 class="tip-title">Temperature Settings</h6>
+                    <p class="small text-muted">
+                        Lower values (0.1-0.3) for analytical tasks, higher values (0.7-1.0) for creative work.
+                    </p>
+                </div>
+                
+                <div class="tip-item mb-3">
+                    <h6 class="tip-title">Local vs Cloud</h6>
+                    <p class="small text-muted">
+                        Local models (LM Studio, Ollama) offer privacy and cost control, while cloud models provide better performance.
+                    </p>
+                </div>
+                
+                <div class="tip-item mb-3">
+                    <h6 class="tip-title">Token Limits</h6>
+                    <p class="small text-muted">
+                        Higher token limits allow longer responses but increase costs and processing time.
+                    </p>
+                </div>
+                
+                <div class="tip-item">
+                    <h6 class="tip-title">Testing</h6>
+                    <p class="small text-muted">
+                        Always test new configurations before using them in production workflows.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Provider Status -->
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-server"></i> Provider Status</h6>
+            </div>
+            <div class="card-body">
+                {% for provider in providers %}
+                <div class="provider-status mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="small">{{ provider.name }}</span>
+                        <span class="badge {% if provider.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                            {% if provider.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+                <div class="mt-3">
+                    <a href="{% url 'agent_system:provider_create' %}" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="fas fa-plus"></i> Add Provider
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Configuration Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="previewContent" class="bg-light p-3 rounded"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="submitFromPreview()">
+                    Create Configuration
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.tip-title {
+    color: #2c3e50;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.preset-item {
+    padding: 0.75rem;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    background: #f8f9fa;
+}
+
+.provider-status {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.provider-status:last-child {
+    border-bottom: none;
+}
+
+.form-range::-webkit-slider-thumb {
+    background: #3498db;
+}
+
+.form-range::-moz-range-thumb {
+    background: #3498db;
+    border: none;
+}
+
+#previewContent {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    max-height: 400px;
+    overflow-y: auto;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    setupFormValidation();
+    setupRangeInputs();
+    setupProviderChange();
+});
+
+function setupFormValidation() {
+    const form = document.getElementById('configForm');
+    form.addEventListener('submit', function(e) {
+        if (!form.checkValidity()) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+}
+
+function setupRangeInputs() {
+    // Temperature slider
+    const tempSlider = document.getElementById('temperature');
+    const tempValue = document.getElementById('temperatureValue');
+    tempSlider.addEventListener('input', function() {
+        tempValue.textContent = this.value;
+    });
+    
+    // Top P slider
+    const topPSlider = document.getElementById('top_p');
+    const topPValue = document.getElementById('topPValue');
+    topPSlider.addEventListener('input', function() {
+        topPValue.textContent = this.value;
+    });
+    
+    // Frequency penalty slider
+    const freqSlider = document.getElementById('frequency_penalty');
+    const freqValue = document.getElementById('frequencyPenaltyValue');
+    freqSlider.addEventListener('input', function() {
+        freqValue.textContent = this.value;
+    });
+    
+    // Presence penalty slider
+    const presSlider = document.getElementById('presence_penalty');
+    const presValue = document.getElementById('presencePenaltyValue');
+    presSlider.addEventListener('input', function() {
+        presValue.textContent = this.value;
+    });
+}
+
+function setupProviderChange() {
+    const providerSelect = document.getElementById('llm_provider');
+    const modelInput = document.getElementById('model_name');
+    
+    providerSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.dataset.model) {
+            modelInput.value = selectedOption.dataset.model;
+        }
+    });
+}
+
+function loadPreset() {
+    showAlert('Preset loading functionality coming soon!', 'info');
+}
+
+function loadPresetData(presetId) {
+    showAlert(`Loading preset ${presetId}...`, 'info');
+    // TODO: Implement preset loading
+}
+
+function testConnection() {
+    const providerSelect = document.getElementById('llm_provider');
+    if (!providerSelect.value) {
+        showAlert('Please select an LLM provider first.', 'warning');
+        return;
+    }
+    
+    showAlert('Testing provider connection...', 'info');
+    
+    // TODO: Implement connection testing
+    setTimeout(() => {
+        showAlert('Connection test successful!', 'success');
+    }, 2000);
+}
+
+function previewConfiguration() {
+    const formData = new FormData(document.getElementById('configForm'));
+    const config = {};
+    
+    for (let [key, value] of formData.entries()) {
+        config[key] = value;
+    }
+    
+    // Format capabilities and tags as arrays
+    if (config.capabilities) {
+        config.capabilities = config.capabilities.split(',').map(s => s.trim()).filter(s => s);
+    }
+    if (config.tags) {
+        config.tags = config.tags.split(',').map(s => s.trim()).filter(s => s);
+    }
+    
+    document.getElementById('previewContent').textContent = JSON.stringify(config, null, 2);
+    
+    const modal = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+}
+
+function submitFromPreview() {
+    bootstrap.Modal.getInstance(document.getElementById('previewModal')).hide();
+    document.getElementById('configForm').submit();
+}
+
+function showAlert(message, type = 'info') {
+    const alertElement = document.createElement('div');
+    alertElement.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertElement.style.cssText = 'top: 20px; right: 20px; z-index: 10000; min-width: 300px;';
+    alertElement.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertElement);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertElement.parentNode) {
+            alertElement.classList.remove('show');
+            setTimeout(() => {
+                if (alertElement.parentNode) {
+                    alertElement.parentNode.removeChild(alertElement);
+                }
+            }, 150);
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

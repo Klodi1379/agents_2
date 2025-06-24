@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Agent Configuration{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-edit"></i> Edit Agent Configuration
+                    </h4>
+                    <a href="{% url 'agent_system:config_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to List
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="configForm">
+                        {% csrf_token %}
+                        
+                        <!-- Basic Information -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="name" class="form-label">Agent Name *</label>
+                                    <input type="text" class="form-control" id="name" name="name" 
+                                           value="{{ config.name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="agent_type" class="form-label">Agent Type *</label>
+                                    <select class="form-select" id="agent_type" name="agent_type" required>
+                                        {% for type_key, type_name in agent_types %}
+                                            <option value="{{ type_key }}" 
+                                                    {% if config.agent_type == type_key %}selected{% endif %}>
+                                                {{ type_name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="description" class="form-label">Description</label>
+                                    <textarea class="form-control" id="description" name="description" 
+                                              rows="3">{{ config.description }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Prompt -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="system_prompt" class="form-label">
+                                        System Prompt *
+                                        <small class="text-muted">
+                                            (Define the agent's role, capabilities, and behavior)
+                                        </small>
+                                    </label>
+                                    <div class="position-relative">
+                                        <textarea class="form-control" id="system_prompt" name="system_prompt" 
+                                                  rows="10" required>{{ config.system_prompt }}</textarea>
+                                        <div class="mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    onclick="loadTemplate()">
+                                                <i class="fas fa-magic"></i> Load Template
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                                    onclick="validatePrompt()">
+                                                <i class="fas fa-check"></i> Validate Prompt
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <button type="submit" class="btn btn-primary me-2">
+                                            <i class="fas fa-save"></i> Save Configuration
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" 
+                                                onclick="testAgent()">
+                                            <i class="fas fa-vial"></i> Test Agent
+                                        </button>
+                                    </div>
+                                    <div>
+                                        <button type="button" class="btn btn-outline-warning me-2" 
+                                                onclick="duplicateConfig()">
+                                            <i class="fas fa-copy"></i> Duplicate
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="deleteConfig()">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadTemplate() {
+    const agentType = document.getElementById('agent_type').value;
+    showAlert('Template loading functionality will be implemented', 'info');
+}
+
+function validatePrompt() {
+    const prompt = document.getElementById('system_prompt').value;
+    
+    if (prompt.length < 50) {
+        showAlert('Prompt seems too short. Consider adding more detail.', 'warning');
+        return;
+    }
+    
+    showAlert('Prompt looks good!', 'success');
+}
+
+function testAgent() {
+    showAlert('Agent testing functionality will be implemented', 'info');
+}
+
+function duplicateConfig() {
+    if (confirm('Create a duplicate of this configuration?')) {
+        showAlert('Duplicate functionality will be implemented', 'info');
+    }
+}
+
+function deleteConfig() {
+    if (confirm('Are you sure you want to delete this configuration?')) {
+        showAlert('Delete functionality will be implemented', 'info');
+    }
+}
+
+function showAlert(message, type) {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'warning' ? 'alert-warning' : 
+                      type === 'info' ? 'alert-info' : 'alert-danger';
+    
+    const alert = document.createElement('div');
+    alert.className = `alert ${alertClass} alert-dismissible fade show`;
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('.row'));
+    
+    setTimeout(() => {
+        alert.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,354 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ agent_report.get_agent_type_display }} Report - AI Company{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'dashboard:ideas_list' %}">My Ideas</a></li>
+<li class="breadcrumb-item"><a href="{% url 'dashboard:idea_detail' business_idea.id %}">{{ business_idea.title|truncatechars:30 }}</a></li>
+<li class="breadcrumb-item active">{{ agent_report.get_agent_type_display }} Report</li>
+{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'dashboard:idea_detail' business_idea.id %}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Back to Analysis
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Report Header -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-alt"></i> {{ agent_report.get_agent_type_display }} Analysis Report
+                </h5>
+            </div>
+            <div class="card-body">
+                <h4>{{ business_idea.title }}</h4>
+                <p class="text-muted">{{ business_idea.description|truncatechars:200 }}</p>
+                
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <strong>Industry:</strong><br>
+                        <span class="badge bg-primary">{{ business_idea.get_industry_display }}</span>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Report Generated:</strong><br>
+                        {{ agent_report.created_at|date:"M d, Y H:i" }}
+                    </div>
+                    <div class="col-md-4">
+                        <strong>Analysis Status:</strong><br>
+                        <span class="status-badge status-{{ agent_report.status|lower }}">
+                            {{ agent_report.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Report Metrics</h5>
+            </div>
+            <div class="card-body">
+                {% if agent_report.agent_score %}
+                <div class="text-center mb-3">
+                    <div class="display-4 text-primary">{{ agent_report.agent_score }}/100</div>
+                    <h6>Agent Score</h6>
+                </div>
+                {% endif %}
+                
+                <ul class="list-unstyled">
+                    {% if agent_report.confidence %}
+                    <li class="mb-2">
+                        <strong>Confidence:</strong>
+                        <div class="progress mt-1">
+                            <div class="progress-bar" style="width: {{ agent_report.confidence }}%">
+                                {{ agent_report.confidence|floatformat:1 }}%
+                            </div>
+                        </div>
+                    </li>
+                    {% endif %}
+                    
+                    {% if agent_report.execution_time %}
+                    <li class="mb-2">
+                        <strong>Analysis Time:</strong> {{ agent_report.execution_time }}
+                    </li>
+                    {% endif %}
+                    
+                    {% if agent_report.llm_model_used %}
+                    <li class="mb-2">
+                        <strong>Model Used:</strong> {{ agent_report.llm_model_used }}
+                    </li>
+                    {% endif %}
+                    
+                    {% if agent_report.token_usage %}
+                    <li class="mb-2">
+                        <strong>Tokens Used:</strong> {{ agent_report.token_usage|floatformat:0 }}
+                    </li>
+                    {% endif %}
+                    
+                    {% if agent_report.cost_estimate %}
+                    <li class="mb-2">
+                        <strong>Est. Cost:</strong> ${{ agent_report.cost_estimate|floatformat:4 }}
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Content -->
+{% if agent_report.status == 'COMPLETED' %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-document-text"></i> Analysis Report</h5>
+            </div>
+            <div class="card-body">
+                <div class="report-content">
+                    {{ agent_report.report_content|linebreaks }}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Structured Data -->
+        {% if agent_report.structured_data %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-database"></i> Key Data Points</h5>
+            </div>
+            <div class="card-body">
+                {% if agent_report.structured_data %}
+                    {% for key, value in agent_report.structured_data.items %}
+                        {% if key != 'confidence_indicators' and value %}
+                        <div class="mb-3">
+                            <h6 class="text-primary">{{ key|title|replace:"_":" " }}</h6>
+                            {% if value is not None %}
+                                {% if value|length > 100 %}
+                                    <p class="small">{{ value|truncatechars:100 }}</p>
+                                {% elif key == 'overall_score' or key == 'market_score' or key == 'financial_score' %}
+                                    <span class="badge bg-primary fs-6">{{ value }}/100</span>
+                                {% elif value|length_is:"1" and value|first|stringformat:"s"|length < 50 %}
+                                    <span class="badge bg-secondary">{{ value|first }}</span>
+                                {% else %}
+                                    <small>{{ value|stringformat:"s"|truncatechars:80 }}</small>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Download Options -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-download"></i> Export Options</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="exportToPDF()">
+                        <i class="fas fa-file-pdf"></i> Export as PDF
+                    </button>
+                    <button class="btn btn-outline-success" onclick="exportToJSON()">
+                        <i class="fas fa-file-code"></i> Export as JSON
+                    </button>
+                    <button class="btn btn-outline-info" onclick="copyToClipboard()">
+                        <i class="fas fa-copy"></i> Copy to Clipboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Raw Data Section (Collapsible) -->
+{% if structured_data_json %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <button class="btn btn-link text-decoration-none p-0" type="button" 
+                            data-bs-toggle="collapse" data-bs-target="#rawDataCollapse">
+                        <i class="fas fa-code"></i> Raw Structured Data
+                        <i class="fas fa-chevron-down ms-2"></i>
+                    </button>
+                </h5>
+            </div>
+            <div class="collapse" id="rawDataCollapse">
+                <div class="card-body">
+                    <pre class="bg-light p-3 rounded"><code id="jsonData">{{ structured_data_json }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% elif agent_report.status == 'FAILED' %}
+<!-- Error State -->
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-danger">
+            <h5><i class="fas fa-exclamation-triangle"></i> Analysis Failed</h5>
+            <p class="mb-0">
+                The {{ agent_report.get_agent_type_display }} analysis could not be completed.
+            </p>
+            {% if agent_report.error_message %}
+            <hr>
+            <p class="mb-0"><strong>Error Details:</strong></p>
+            <code>{{ agent_report.error_message }}</code>
+            {% endif %}
+        </div>
+        
+        <div class="text-center">
+            <button class="btn btn-primary" onclick="retryAnalysis()">
+                <i class="fas fa-redo"></i> Retry Analysis
+            </button>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- In Progress State -->
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-info text-center">
+            <div class="loading-spinner mb-3"></div>
+            <h5>Analysis in Progress</h5>
+            <p class="mb-0">
+                The {{ agent_report.get_agent_type_display }} is currently analyzing your business idea.
+                This page will automatically update when complete.
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.report-content {
+    line-height: 1.6;
+    font-size: 1.05em;
+}
+
+.report-content h1, .report-content h2, .report-content h3,
+.report-content h4, .report-content h5, .report-content h6 {
+    color: #2c3e50;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+.report-content ul, .report-content ol {
+    padding-left: 1.5em;
+}
+
+.report-content blockquote {
+    border-left: 4px solid #3498db;
+    padding-left: 1em;
+    margin: 1em 0;
+    background-color: #f8f9fa;
+    padding: 1em;
+    border-radius: 4px;
+}
+
+pre code {
+    font-size: 0.9em;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.badge.fs-6 {
+    font-size: 1em !important;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+{% if agent_report.status != 'COMPLETED' and agent_report.status != 'FAILED' %}
+// Auto-refresh for in-progress reports
+setInterval(function() {
+    location.reload();
+}, 15000); // Refresh every 15 seconds
+{% endif %}
+
+function exportToPDF() {
+    // Simple print to PDF functionality
+    window.print();
+}
+
+function exportToJSON() {
+    {% if structured_data_json %}
+    const jsonData = {{ structured_data_json|safe }};
+    const blob = new Blob([JSON.stringify(jsonData, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '{{ agent_report.get_agent_type_display|lower }}_report_{{ business_idea.id }}.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    {% else %}
+    alert('No structured data available for export.');
+    {% endif %}
+}
+
+function copyToClipboard() {
+    const reportContent = document.querySelector('.report-content').innerText;
+    navigator.clipboard.writeText(reportContent).then(function() {
+        // Show success message
+        const btn = event.target.closest('button');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        btn.classList.remove('btn-outline-info');
+        btn.classList.add('btn-success');
+        
+        setTimeout(function() {
+            btn.innerHTML = originalText;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-info');
+        }, 2000);
+    }).catch(function(err) {
+        alert('Failed to copy to clipboard');
+    });
+}
+
+function retryAnalysis() {
+    if (confirm('Are you sure you want to retry the analysis? This will restart the entire analysis process.')) {
+        // This would typically make an AJAX call to retry the analysis
+        // For now, redirect back to the idea detail page
+        window.location.href = '{% url "dashboard:idea_detail" business_idea.id %}';
+    }
+}
+
+// Syntax highlighting for JSON (simple)
+document.addEventListener('DOMContentLoaded', function() {
+    const jsonElement = document.getElementById('jsonData');
+    if (jsonElement) {
+        // Simple JSON formatting/highlighting could be added here
+        // For now, just ensure proper formatting
+        try {
+            const json = JSON.parse(jsonElement.textContent);
+            jsonElement.textContent = JSON.stringify(json, null, 2);
+        } catch(e) {
+            // Already formatted or not valid JSON
+        }
+    }
+});
+</script>
+{% endblock %}

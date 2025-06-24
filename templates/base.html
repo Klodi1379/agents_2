@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Company - Autonomous Business Analysis{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --dark-color: #1a252f;
+            --light-color: #ecf0f1;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .sidebar {
+            background: linear-gradient(135deg, var(--primary-color), var(--dark-color));
+            min-height: 100vh;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 12px 20px;
+            margin: 2px 0;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255,255,255,0.1);
+            transform: translateX(5px);
+        }
+        
+        .main-content {
+            padding: 20px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--secondary-color), #5dade2);
+            color: white;
+            border-radius: 12px 12px 0 0 !important;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--secondary-color), #5dade2);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+        }
+        
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+            background-color: #e9ecef;
+        }
+        
+        .progress-bar {
+            border-radius: 4px;
+        }
+        
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-completed { background-color: var(--success-color); color: white; }
+        .status-analyzing { background-color: var(--warning-color); color: white; }
+        .status-pending { background-color: #6c757d; color: white; }
+        .status-failed { background-color: var(--accent-color); color: white; }
+        
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5em;
+        }
+        
+        .agent-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 10px 0;
+        }
+        
+        .metric-card {
+            text-align: center;
+            padding: 25px;
+        }
+        
+        .metric-number {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: var(--secondary-color);
+        }
+        
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--secondary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -250px;
+                width: 250px;
+                z-index: 1000;
+                transition: left 0.3s ease;
+            }
+            
+            .sidebar.show {
+                left: 0;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top d-lg-none">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'dashboard:dashboard' %}">
+                <i class="fas fa-robot"></i> AI Company
+            </a>
+            <button class="navbar-toggler" type="button" onclick="toggleSidebar()">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-lg-2 d-lg-block sidebar" id="sidebar">
+                <div class="position-sticky pt-3">
+                    <a href="{% url 'dashboard:dashboard' %}" class="navbar-brand d-none d-lg-block text-white text-decoration-none p-3">
+                        <i class="fas fa-robot"></i> AI Company
+                    </a>
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
+                               href="{% url 'dashboard:dashboard' %}">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'submit_idea' %}active{% endif %}" 
+                               href="{% url 'dashboard:submit_idea' %}">
+                                <i class="fas fa-lightbulb"></i> Submit Idea
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'ideas_list' %}active{% endif %}" 
+                               href="{% url 'dashboard:ideas_list' %}">
+                                <i class="fas fa-list"></i> My Ideas
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" 
+                               href="{% url 'dashboard:analytics' %}">
+                                <i class="fas fa-chart-line"></i> Analytics
+                            </a>
+                        </li>
+                        
+                        <!-- Agent System Section -->
+                        <li class="nav-item mt-3">
+                            <h6 class="text-light text-uppercase px-3 mb-2" style="font-size: 0.8em; letter-spacing: 1px;">
+                                <i class="fas fa-robot"></i> Agent System
+                            </h6>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'agent_system:config_list' in request.resolver_match.url_name %}active{% endif %}" 
+                               href="{% url 'agent_system:config_list' %}">
+                                <i class="fas fa-cogs"></i> Agent Configurations
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'agent_system:config_create' in request.resolver_match.url_name %}active{% endif %}" 
+                               href="{% url 'agent_system:config_create' %}">
+                                <i class="fas fa-plus-circle"></i> Create Agent
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'agent_system:agent_status' in request.resolver_match.url_name %}active{% endif %}" 
+                               href="{% url 'agent_system:agent_status' %}">
+                                <i class="fas fa-heartbeat"></i> Agent Status
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showAgentQuickSelect()">
+                                <i class="fas fa-comments"></i> Chat with Agent
+                            </a>
+                        </li>
+                        
+                        <!-- Analytics & Reports -->
+                        <li class="nav-item mt-3">
+                            <h6 class="text-light text-uppercase px-3 mb-2" style="font-size: 0.8em; letter-spacing: 1px;">
+                                <i class="fas fa-chart-bar"></i> Reports
+                            </h6>
+                        </li>
+                        {% if user.is_staff %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'admin:index' %}">
+                                <i class="fas fa-shield-alt"></i> Admin Panel
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                    
+                    <hr class="text-light">
+                    
+                    <div class="dropdown">
+                        <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" 
+                           id="dropdownUser" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-2"></i>
+                            <strong>{{ user.get_full_name|default:user.username }}</strong>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark text-small shadow">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user"></i> Profile</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog"></i> Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'dashboard:logout' %}"><i class="fas fa-sign-out-alt"></i> Sign out</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-lg-10 ms-lg-auto main-content">
+                <div class="pt-3 pt-lg-0">
+                    <!-- Breadcrumb -->
+                    <nav aria-label="breadcrumb" class="mb-4">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'dashboard:dashboard' %}">Home</a></li>
+                            {% block breadcrumb %}{% endblock %}
+                        </ol>
+                    </nav>
+
+                    <!-- Messages -->
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Page Header -->
+                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+                        <h1 class="h2">{% block page_title %}{{ title }}{% endblock %}</h1>
+                        {% block page_actions %}{% endblock %}
+                    </div>
+
+                    <!-- Page Content -->
+                    <div class="fade-in">
+                        {% block content %}{% endblock %}
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Sidebar toggle for mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('show');
+        }
+
+        // Auto-refresh functionality
+        function startAutoRefresh(url, interval = 5000) {
+            setInterval(function() {
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        updatePageContent(data);
+                    })
+                    .catch(error => console.log('Auto-refresh error:', error));
+            }, interval);
+        }
+
+        // Update progress bars
+        function updateProgressBar(elementId, percentage) {
+            const progressBar = document.getElementById(elementId);
+            if (progressBar) {
+                progressBar.style.width = percentage + '%';
+                progressBar.setAttribute('aria-valuenow', percentage);
+                progressBar.textContent = Math.round(percentage) + '%';
+            }
+        }
+
+        // Show loading spinner
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = '<div class="loading-spinner"></div> Loading...';
+            }
+        }
+
+        // Format numbers
+        function formatNumber(num) {
+            return new Intl.NumberFormat().format(num);
+        }
+
+        // Format currency
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggleButton = document.querySelector('.navbar-toggler');
+            
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(event.target) && 
+                !toggleButton.contains(event.target)) {
+                sidebar.classList.remove('show');
+            }
+        });
+
+        // Agent Quick Select Modal
+        function showAgentQuickSelect() {
+            // Create modal if it doesn't exist
+            let modal = document.getElementById('agentQuickSelectModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'agentQuickSelectModal';
+                modal.className = 'modal fade';
+                modal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-robot"></i> Select Agent to Chat With
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="agentsList">
+                                    <div class="text-center">
+                                        <div class="loading-spinner"></div>
+                                        <p>Loading available agents...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+                // Load agents list
+                loadAvailableAgents();
+            }
+            
+            // Show modal
+            const bootstrapModal = new bootstrap.Modal(modal);
+            bootstrapModal.show();
+        }
+
+        // Load available agents for quick select
+        function loadAvailableAgents() {
+            fetch('/agent-system/api/available-agents/')
+                .then(response => response.json())
+                .then(data => {
+                    const agentsList = document.getElementById('agentsList');
+                    if (data.agents && data.agents.length > 0) {
+                        agentsList.innerHTML = data.agents.map(agent => `
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="card-title mb-1">${agent.name}</h6>
+                                            <p class="card-text text-muted mb-0">
+                                                <small>${agent.description}</small>
+                                            </p>
+                                            <div class="mt-1">
+                                                ${agent.capabilities.map(cap => 
+                                                    `<span class="badge bg-secondary me-1">${cap}</span>`
+                                                ).join('')}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <a href="/agent-system/execute/${agent.id}/" 
+                                               class="btn btn-primary btn-sm">
+                                                <i class="fas fa-comments"></i> Chat
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        agentsList.innerHTML = `
+                            <div class="text-center text-muted">
+                                <i class="fas fa-robot fa-3x mb-3"></i>
+                                <p>No active agents available.</p>
+                                <a href="/agent-system/create/" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> Create Your First Agent
+                                </a>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading agents:', error);
+                    document.getElementById('agentsList').innerHTML = `
+                        <div class="text-center text-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>Error loading agents. Please try again.</p>
+                        </div>
+                    `;
+                });
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

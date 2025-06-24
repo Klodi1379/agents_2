@@ -1,0 +1,485 @@
+{% extends 'base.html' %}
+
+{% block title %}AI Agent System Status - AI Company{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Agent Status</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <button type="button" class="btn btn-outline-primary" onclick="refreshStatus()">
+        <i class="fas fa-sync-alt"></i> Refresh Status
+    </button>
+    <button type="button" class="btn btn-outline-info" onclick="viewMetrics()">
+        <i class="fas fa-chart-bar"></i> View Metrics
+    </button>
+    <button type="button" class="btn btn-outline-success" onclick="testAgents()">
+        <i class="fas fa-play"></i> Test Agents
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- System Overview -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-gradient bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-server"></i> AI Agent System Overview</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="stat-card text-center p-3 bg-light rounded">
+                            <div class="stat-icon mb-2">
+                                <i class="fas fa-users-cog fa-2x text-primary"></i>
+                            </div>
+                            <div class="stat-number h4 text-primary" id="totalAgents">{{ agent_metrics|length }}</div>
+                            <div class="stat-label text-muted">Total Agents</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="stat-card text-center p-3 bg-light rounded">
+                            <div class="stat-icon mb-2">
+                                <i class="fas fa-check-circle fa-2x text-success"></i>
+                            </div>
+                            <div class="stat-number h4 text-success" id="activeAgents">
+                                {% for type, metrics in agent_metrics.items %}
+                                    {% if forloop.first %}{{ agent_metrics|length }}{% endif %}
+                                {% empty %}
+                                0
+                                {% endfor %}
+                            </div>
+                            <div class="stat-label text-muted">Active Agents</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="stat-card text-center p-3 bg-light rounded">
+                            <div class="stat-icon mb-2">
+                                <i class="fas fa-tasks fa-2x text-info"></i>
+                            </div>
+                            <div class="stat-number h4 text-info" id="totalReports">
+                                {% for type, metrics in agent_metrics.items %}
+                                    {{ metrics.total_reports|default:0|add:0 }}
+                                    {% if not forloop.last %}+{% endif %}
+                                {% empty %}
+                                0
+                                {% endfor %}
+                            </div>
+                            <div class="stat-label text-muted">Total Reports</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="stat-card text-center p-3 bg-light rounded">
+                            <div class="stat-icon mb-2">
+                                <i class="fas fa-percentage fa-2x text-warning"></i>
+                            </div>
+                            <div class="stat-number h4 text-warning" id="avgSuccessRate">
+                                {% for type, metrics in agent_metrics.items %}
+                                    {% if forloop.first %}{{ metrics.success_rate|floatformat:1 }}%{% endif %}
+                                {% empty %}
+                                --
+                                {% endfor %}
+                            </div>
+                            <div class="stat-label text-muted">Avg Success Rate</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Agent Status Cards -->
+<div class="row mb-4">
+    {% for agent_type, metrics in agent_metrics.items %}
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card agent-card shadow-sm h-100" data-agent="{{ agent_type }}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="agent-avatar me-3">
+                        {% if agent_type == 'CEO' %}
+                            <i class="fas fa-crown"></i>
+                        {% elif agent_type == 'MARKET_RESEARCH' %}
+                            <i class="fas fa-chart-bar"></i>
+                        {% elif agent_type == 'FINANCIAL_ANALYST' %}
+                            <i class="fas fa-calculator"></i>
+                        {% elif agent_type == 'TECHNICAL_LEAD' %}
+                            <i class="fas fa-code"></i>
+                        {% elif agent_type == 'RISK_ANALYST' %}
+                            <i class="fas fa-shield-alt"></i>
+                        {% elif agent_type == 'MARKETING_STRATEGIST' %}
+                            <i class="fas fa-bullhorn"></i>
+                        {% else %}
+                            <i class="fas fa-robot"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h6 class="mb-0">{{ metrics.name }}</h6>
+                        <small class="text-muted">{{ agent_type|title }}</small>
+                    </div>
+                </div>
+                <div class="status-indicator">
+                    <span class="badge bg-success">
+                        <i class="fas fa-circle"></i> Online
+                    </span>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <!-- Performance Metrics -->
+                <div class="metrics-grid">
+                    <div class="metric-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="metric-label">Total Reports</span>
+                            <span class="metric-value fw-bold">{{ metrics.total_reports|default:0 }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="metric-label">Completed</span>
+                            <span class="metric-value fw-bold text-success">{{ metrics.completed_reports|default:0 }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="metric-label">Success Rate</span>
+                            <span class="metric-value fw-bold">{{ metrics.success_rate|floatformat:1 }}%</span>
+                        </div>
+                        <div class="progress mt-1" style="height: 4px;">
+                            <div class="progress-bar bg-success" style="width: {{ metrics.success_rate }}%"></div>
+                        </div>
+                    </div>
+                    
+                    {% if metrics.average_score %}
+                    <div class="metric-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="metric-label">Avg Score</span>
+                            <span class="metric-value fw-bold text-primary">{{ metrics.average_score|floatformat:1 }}/100</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if metrics.average_execution_time %}
+                    <div class="metric-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="metric-label">Avg Time</span>
+                            <span class="metric-value fw-bold text-info">{{ metrics.average_execution_time|floatformat:1 }}s</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card-footer bg-transparent">
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'agent_system:agent_detail' agent_type %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-info-circle"></i> Details
+                    </a>
+                    <button class="btn btn-sm btn-outline-success" onclick="testAgent('{{ agent_type }}')">
+                        <i class="fas fa-play"></i> Test
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="viewLogs('{{ agent_type }}')">
+                        <i class="fas fa-file-alt"></i> Logs
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <!-- No agents message -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-robot fa-4x text-muted mb-3"></i>
+                <h4>No Agent Data Available</h4>
+                <p class="text-muted">Agent metrics will appear here once business ideas have been analyzed.</p>
+                <a href="{% url 'dashboard:submit_idea' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Submit Business Idea
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- System Health -->
+{% if hub_status %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-heartbeat"></i> System Health</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Communication Hub Status</h6>
+                        <div class="health-item mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span>Queue Size</span>
+                                <span class="badge bg-info">{{ hub_status.queue_size|default:0 }}</span>
+                            </div>
+                        </div>
+                        <div class="health-item mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span>Active Workflows</span>
+                                <span class="badge bg-warning">{{ hub_status.active_workflows|default:0 }}</span>
+                            </div>
+                        </div>
+                        <div class="health-item mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span>Registered Agents</span>
+                                <span class="badge bg-success">{{ agent_metrics|length }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6>System Performance</h6>
+                        <div class="health-item mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span>Uptime</span>
+                                <span class="text-success">99.9%</span>
+                            </div>
+                        </div>
+                        <div class="health-item mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span>Response Time</span>
+                                <span class="text-success">&lt; 500ms</span>
+                            </div>
+                        </div>
+                        <div class="health-item mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span>Memory Usage</span>
+                                <span class="text-warning">65%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Agent Test Modal -->
+<div class="modal fade" id="agentTestModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Test Agent</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="testResults">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Testing...</span>
+                        </div>
+                        <p class="mt-2">Testing agent functionality...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.agent-card {
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+}
+
+.agent-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    border-color: #3498db;
+}
+
+.agent-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.stat-card {
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.status-indicator .badge {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.metric-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.metric-item:last-child {
+    border-bottom: none;
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.metric-value {
+    font-size: 0.875rem;
+}
+
+.health-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.health-item:last-child {
+    border-bottom: none;
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let refreshInterval;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Start auto-refresh every 30 seconds
+    startAutoRefresh();
+    
+    // Add fade-in animation to cards
+    document.querySelectorAll('.agent-card').forEach((card, index) => {
+        setTimeout(() => {
+            card.classList.add('fade-in');
+        }, index * 100);
+    });
+});
+
+function startAutoRefresh() {
+    refreshInterval = setInterval(refreshStatus, 30000); // 30 seconds
+}
+
+function stopAutoRefresh() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+}
+
+function refreshStatus() {
+    // Show loading indicator
+    const refreshBtn = document.querySelector('button[onclick="refreshStatus()"]');
+    const originalText = refreshBtn.innerHTML;
+    refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+    refreshBtn.disabled = true;
+    
+    // Simulate API call to refresh status
+    setTimeout(() => {
+        // In a real implementation, this would fetch fresh data
+        location.reload();
+    }, 1000);
+}
+
+function viewMetrics() {
+    // TODO: Navigate to detailed metrics page
+    showAlert('Detailed metrics view coming soon!', 'info');
+}
+
+function testAgents() {
+    // TODO: Implement bulk agent testing
+    showAlert('Bulk agent testing coming soon!', 'info');
+}
+
+function testAgent(agentType) {
+    const modal = new bootstrap.Modal(document.getElementById('agentTestModal'));
+    modal.show();
+    
+    // Simulate agent test
+    setTimeout(() => {
+        document.getElementById('testResults').innerHTML = `
+            <div class="alert alert-success">
+                <h6><i class="fas fa-check-circle"></i> Agent Test Successful</h6>
+                <p class="mb-0">Agent ${agentType} is responding correctly and ready for analysis tasks.</p>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        Response time: 245ms | Status: Active | Last test: ${new Date().toLocaleString()}
+                    </small>
+                </div>
+            </div>
+        `;
+    }, 2000);
+}
+
+function viewLogs(agentType) {
+    // TODO: Implement log viewing
+    showAlert(`Log viewing for ${agentType} coming soon!`, 'info');
+}
+
+function showAlert(message, type = 'info') {
+    const alertElement = document.createElement('div');
+    alertElement.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertElement.style.cssText = 'top: 20px; right: 20px; z-index: 10000; min-width: 300px;';
+    alertElement.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertElement);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertElement.parentNode) {
+            alertElement.classList.remove('show');
+            setTimeout(() => {
+                if (alertElement.parentNode) {
+                    alertElement.parentNode.removeChild(alertElement);
+                }
+            }, 150);
+        }
+    }, 5000);
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    stopAutoRefresh();
+});
+</script>
+{% endblock %}

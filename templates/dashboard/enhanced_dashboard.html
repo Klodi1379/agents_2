@@ -1,0 +1,636 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - AI Company{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Dashboard</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{% url 'dashboard:submit_idea' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Submit New Idea
+    </a>
+    <button type="button" class="btn btn-outline-secondary" onclick="refreshDashboard()">
+        <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Welcome Section -->
+<div class="welcome-banner mb-4 p-4 rounded-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h3 class="mb-2">Welcome back, {{ user.get_full_name|default:user.username }}! 👋</h3>
+            <p class="mb-0 opacity-75">Your AI business analysis command center</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="d-inline-flex align-items-center bg-white bg-opacity-20 rounded-pill px-3 py-2">
+                <i class="fas fa-clock me-2"></i>
+                <span id="currentTime"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Key Metrics Row -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card metric-card h-100 border-0 shadow-sm">
+            <div class="card-body text-center position-relative">
+                <div class="metric-icon mb-3">
+                    <i class="fas fa-lightbulb fa-2x text-primary"></i>
+                </div>
+                <div class="metric-number" id="totalIdeas">{{ total_ideas }}</div>
+                <div class="metric-label">Total Ideas</div>
+                <div class="metric-change small text-success">
+                    <i class="fas fa-arrow-up"></i> +{{ recent_activity|length }} this week
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card metric-card h-100 border-0 shadow-sm">
+            <div class="card-body text-center position-relative">
+                <div class="metric-icon mb-3">
+                    <i class="fas fa-check-circle fa-2x text-success"></i>
+                </div>
+                <div class="metric-number text-success" id="completedAnalyses">{{ completed_analyses }}</div>
+                <div class="metric-label">Completed</div>
+                <div class="metric-change small text-muted">
+                    {{ completion_rate|floatformat:1 }}% completion rate
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card metric-card h-100 border-0 shadow-sm">
+            <div class="card-body text-center position-relative">
+                <div class="metric-icon mb-3">
+                    <i class="fas fa-spinner fa-2x text-warning"></i>
+                </div>
+                <div class="metric-number text-warning" id="inProgress">{{ in_progress }}</div>
+                <div class="metric-label">In Progress</div>
+                {% if in_progress > 0 %}
+                <div class="metric-change small">
+                    <span class="spinner-border spinner-border-sm text-warning me-1"></span>
+                    Analyzing now
+                </div>
+                {% else %}
+                <div class="metric-change small text-muted">All caught up!</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card metric-card h-100 border-0 shadow-sm">
+            <div class="card-body text-center position-relative">
+                <div class="metric-icon mb-3">
+                    <i class="fas fa-star fa-2x text-info"></i>
+                </div>
+                <div class="metric-number text-info" id="averageScore">
+                    {% if average_score %}{{ average_score }}{% else %}--{% endif %}
+                </div>
+                <div class="metric-label">Avg Score</div>
+                <div class="metric-change small text-muted">
+                    {% if average_score %}Out of 100{% else %}No scores yet{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Dashboard Content Row -->
+<div class="row mb-4">
+    <!-- Left Column - Charts & Progress -->
+    <div class="col-lg-8">
+        <!-- Progress Overview Card -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Analysis Progress Overview</h5>
+                <div class="btn-group btn-group-sm" role="group">
+                    <input type="radio" class="btn-check" name="chartType" id="statusChart" checked>
+                    <label class="btn btn-outline-primary" for="statusChart">Status</label>
+                    
+                    <input type="radio" class="btn-check" name="chartType" id="industryChart">
+                    <label class="btn btn-outline-primary" for="industryChart">Industry</label>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Completion Rate Progress Bar -->
+                <div class="row align-items-center mb-4">
+                    <div class="col-md-3">
+                        <strong>Overall Completion Rate</strong>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-gradient bg-success completion-rate-bar" role="progressbar"
+                            aria-valuenow="&#123;&#123; completion_rate }}"
+                            aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <span class="badge bg-success">{{ completion_rate|floatformat:1 }}%</span>
+                    </div>
+                </div>
+                
+                <!-- Chart Container -->
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Ideas Enhanced -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history"></i> Recent Ideas</h5>
+                <div>
+                    <div class="btn-group btn-group-sm me-2" role="group">
+                        <button type="button" class="btn btn-outline-secondary active" onclick="filterRecent('all')">All</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="filterRecent('completed')">Completed</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="filterRecent('progress')">In Progress</button>
+                    </div>
+                    <a href="{% url 'dashboard:ideas_list' %}" class="btn btn-sm btn-primary">View All</a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if recent_ideas %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Industry</th>
+                                    <th>Status</th>
+                                    <th>Score</th>
+                                    <th>Progress</th>
+                                    <th>Submitted</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentIdeasTable">
+                                {% for idea in recent_ideas %}
+                                <tr data-status="{{ idea.status|lower }}" class="idea-row">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="idea-avatar me-3 bg-primary rounded-circle d-flex align-items-center justify-content-center" 
+                                                 style="width: 40px; height: 40px; font-size: 16px; color: white;">
+                                                <i class="fas fa-lightbulb"></i>
+                                            </div>
+                                            <div>
+                                                <a href="{% url 'dashboard:idea_detail' idea.id %}" class="text-decoration-none fw-medium">
+                                                    {{ idea.title|truncatechars:40 }}
+                                                </a>
+                                                <div class="small text-muted">{{ idea.description|truncatechars:60 }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ idea.get_industry_display }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge status-{{ idea.status|lower }}">
+                                            {{ idea.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if idea.overall_score %}
+                                            <div class="d-flex align-items-center">
+                                                <span class="fw-bold text-primary me-2">{{ idea.overall_score }}</span>
+                                                <div class="progress" style="width: 60px; height: 6px;">
+                                                    <div class="progress-bar bg-primary idea-score-bar"></div>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 6px;">
+                                            {% if idea.status == 'COMPLETED' %}
+                                                <div class="progress-bar bg-success" style="width: 100%"></div>
+                                            {% elif idea.status == 'ANALYZING' %}
+                                                <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated" style="width: 60%"></div>
+                                            {% else %}
+                                                <div class="progress-bar bg-secondary" style="width: 10%"></div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="small">{{ idea.submitted_at|date:"M d, Y" }}</div>
+                                        <div class="small text-muted">{{ idea.submitted_at|timesince }} ago</div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'dashboard:idea_detail' idea.id %}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if idea.status == 'COMPLETED' %}
+                                            <button class="btn btn-outline-success" title="Share Results">
+                                                <i class="fas fa-share"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <div class="empty-state">
+                            <i class="fas fa-lightbulb fa-4x text-muted mb-3"></i>
+                            <h5>No ideas yet</h5>
+                            <p class="text-muted mb-4">Submit your first business idea to get started with AI analysis!</p>
+                            <a href="{% url 'dashboard:submit_idea' %}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-plus"></i> Submit Your First Idea
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Column - Quick Actions & Activity -->
+    <div class="col-lg-4">
+        <!-- Enhanced Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-3">
+                    <a href="{% url 'dashboard:submit_idea' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-lightbulb me-2"></i> Submit New Idea
+                    </a>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <a href="{% url 'dashboard:ideas_list' %}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-list d-block mb-1"></i>
+                                <small>View Ideas</small>
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{% url 'dashboard:analytics' %}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-chart-line d-block mb-1"></i>
+                                <small>Analytics</small>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <a href="{% url 'agent_system:agent_status' %}" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-users-cog d-block mb-1"></i>
+                                <small>AI Agents</small>
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <button class="btn btn-outline-dark w-100" onclick="exportData()">
+                                <i class="fas fa-download d-block mb-1"></i>
+                                <small>Export</small>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Activity Timeline -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-activity"></i> Recent Activity</h5>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="autoRefresh" checked>
+                    <label class="form-check-label small" for="autoRefresh">Auto-refresh</label>
+                </div>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                {% if recent_activity %}
+                    <div class="timeline" id="activityTimeline">
+                        {% for activity in recent_activity %}
+                        <div class="timeline-item mb-3" data-aos="fade-up" data-aos-delay="{{ forloop.counter0|mul:100 }}">
+                            <div class="d-flex">
+                                <div class="flex-shrink-0 timeline-icon">
+                                    {% if activity.status == 'COMPLETED' %}
+                                        <div class="bg-success rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                            <i class="fas fa-check text-white small"></i>
+                                        </div>
+                                    {% elif activity.status == 'ANALYZING' %}
+                                        <div class="bg-warning rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                            <i class="fas fa-spinner fa-spin text-white small"></i>
+                                        </div>
+                                    {% elif activity.status == 'FAILED' %}
+                                        <div class="bg-danger rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                            <i class="fas fa-times text-white small"></i>
+                                        </div>
+                                    {% else %}
+                                        <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                            <i class="fas fa-clock text-white small"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <h6 class="mb-1">{{ activity.title|truncatechars:30 }}</h6>
+                                        <small class="text-muted">{{ activity.submitted_at|timesince }} ago</small>
+                                    </div>
+                                    <p class="text-muted small mb-1">
+                                        Status: {{ activity.get_status_display }}
+                                    </p>
+                                    {% if activity.overall_score %}
+                                    <div class="small">
+                                        <span class="badge bg-primary">Score: {{ activity.overall_score }}/100</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox text-muted fa-3x mb-3"></i>
+                        <h6>No recent activity</h6>
+                        <p class="text-muted small">Your activity will appear here</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.welcome-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+}
+
+.metric-card {
+    transition: all 0.3s ease;
+    border-left: 4px solid transparent;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+    border-left-color: var(--bs-primary);
+}
+
+.metric-icon {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.metric-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.metric-label {
+    color: #6c757d;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.metric-change {
+    margin-top: 0.5rem;
+    font-weight: 500;
+}
+
+.idea-avatar {
+    transition: all 0.3s ease;
+}
+
+.idea-row:hover .idea-avatar {
+    transform: scale(1.1);
+}
+
+.timeline-item {
+    position: relative;
+}
+
+.timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 40px;
+    width: 2px;
+    background: #e9ecef;
+}
+
+.chart-container {
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.empty-state {
+    padding: 2rem;
+}
+
+@media (max-width: 768px) {
+    .metric-number {
+        font-size: 2rem;
+    }
+    
+    .welcome-banner h3 {
+        font-size: 1.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Enhanced dashboard functionality
+let mainChart;
+let autoRefreshInterval;
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeDashboard();
+    updateCurrentTime();
+    setInterval(updateCurrentTime, 1000);
+    
+    // Initialize auto-refresh if enabled
+    const autoRefreshCheck = document.getElementById('autoRefresh');
+    if (autoRefreshCheck.checked && {{ in_progress|safe }} > 0) {
+        startAutoRefresh();
+    }
+    
+    autoRefreshCheck.addEventListener('change', function() {
+        if (this.checked) {
+            startAutoRefresh();
+        } else {
+            stopAutoRefresh();
+        }
+    });
+});
+
+function initializeDashboard() {
+    createMainChart();
+    initializeChartToggle();
+}
+
+function createMainChart() {
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    const statusData = {{ status_distribution|safe }};
+    
+    mainChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: statusData.map(item => item.status.replace('_', ' ').toUpperCase()),
+            datasets: [{
+                data: statusData.map(item => item.count),
+                backgroundColor: [
+                    '#27ae60', // COMPLETED
+                    '#f39c12', // ANALYZING  
+                    '#6c757d', // PENDING
+                    '#e74c3c', // FAILED
+                    '#3498db'  // OTHER
+                ],
+                borderWidth: 3,
+                borderColor: '#fff',
+                hoverBorderWidth: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: '#fff',
+                    borderWidth: 1
+                }
+            },
+            animation: {
+                animateRotate: true,
+                duration: 1000
+            }
+        }
+    });
+}
+
+function initializeChartToggle() {
+    document.querySelectorAll('input[name="chartType"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.id === 'industryChart') {
+                // TODO: Switch to industry chart
+                console.log('Switch to industry chart');
+            } else {
+                // TODO: Switch back to status chart
+                console.log('Switch to status chart');
+            }
+        });
+    });
+}
+
+function updateCurrentTime() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+    });
+    document.getElementById('currentTime').textContent = timeString;
+}
+
+function refreshDashboard() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+    btn.disabled = true;
+    
+    // Simulate refresh - in real app, this would fetch new data
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function filterRecent(type) {
+    const rows = document.querySelectorAll('.idea-row');
+    const buttons = document.querySelectorAll('.btn-group button');
+    
+    // Update button states
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Filter rows
+    rows.forEach(row => {
+        const status = row.dataset.status;
+        let show = true;
+        
+        if (type === 'completed' && status !== 'completed') show = false;
+        if (type === 'progress' && !['analyzing', 'queue'].includes(status)) show = false;
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+function startAutoRefresh() {
+    stopAutoRefresh(); // Clear any existing interval
+    autoRefreshInterval = setInterval(async () => {
+        try {
+            // In a real app, you'd fetch updated metrics here
+            console.log('Auto-refreshing dashboard data...');
+            // For now, just update the activity indicators
+            updateActivityIndicators();
+        } catch (error) {
+            console.error('Auto-refresh failed:', error);
+        }
+    }, 30000); // 30 seconds
+}
+
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+}
+
+function updateActivityIndicators() {
+    // Add subtle animations to show data is fresh
+    document.querySelectorAll('.metric-number').forEach(el => {
+        el.style.animation = 'pulse 0.5s ease-in-out';
+    });
+}
+
+function exportData() {
+    // TODO: Implement data export functionality
+    alert('Export functionality coming soon!');
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    stopAutoRefresh();
+});
+</script>
+{% endblock %}

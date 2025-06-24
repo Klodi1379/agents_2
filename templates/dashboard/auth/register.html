@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Account - AI Company{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <i class="fas fa-robot fa-3x text-primary mb-3"></i>
+                    <h2>Create Account</h2>
+                    <p class="text-muted">Join AI Company to analyze your business ideas</p>
+                </div>
+
+                {% if form.errors %}
+                <div class="alert alert-danger">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <div><strong>{{ field.label }}:</strong> {{ error }}</div>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="id_username" class="form-label">
+                            Username <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-user"></i>
+                            </span>
+                            <input type="text" name="username" class="form-control" 
+                                   id="id_username" placeholder="Choose a username" required>
+                        </div>
+                        <div class="form-text">
+                            150 characters or fewer. Letters, digits and @/./+/-/_ only.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_password1" class="form-label">
+                            Password <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                            <input type="password" name="password1" class="form-control" 
+                                   id="id_password1" placeholder="Create a strong password" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="id_password2" class="form-label">
+                            Confirm Password <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                            <input type="password" name="password2" class="form-control" 
+                                   id="id_password2" placeholder="Confirm your password" required>
+                        </div>
+                    </div>
+
+                    <!-- Password Requirements -->
+                    <div class="card bg-light mb-4">
+                        <div class="card-body py-3">
+                            <h6 class="card-title mb-2">
+                                <i class="fas fa-shield-alt text-info"></i> Password Requirements
+                            </h6>
+                            <ul class="mb-0 small">
+                                <li>Your password can't be too similar to your other personal information.</li>
+                                <li>Your password must contain at least 8 characters.</li>
+                                <li>Your password can't be a commonly used password.</li>
+                                <li>Your password can't be entirely numeric.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-user-plus"></i> Create Account
+                        </button>
+                    </div>
+                </form>
+
+                <div class="text-center mt-4">
+                    <p class="text-muted">
+                        Already have an account?
+                        <a href="{% url 'dashboard:login' %}" class="text-decoration-none">
+                            Sign in here
+                        </a>
+                    </p>
+                </div>
+
+                <div class="text-center mt-3">
+                    <a href="{% url 'dashboard:home' %}" class="text-muted text-decoration-none">
+                        <i class="fas fa-arrow-left"></i> Back to Home
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Benefits -->
+        <div class="card mt-4 border-success">
+            <div class="card-body">
+                <h6 class="text-success">
+                    <i class="fas fa-check-circle"></i> What you get with your free account:
+                </h6>
+                <ul class="mb-0 small">
+                    <li>Unlimited business idea submissions</li>
+                    <li>AI-powered analysis from 6+ specialized agents</li>
+                    <li>Comprehensive reports with actionable insights</li>
+                    <li>Real-time progress tracking</li>
+                    <li>Analytics and performance dashboards</li>
+                    <li>Export capabilities for your reports</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card {
+    border: none;
+    border-radius: 15px;
+}
+
+.input-group-text {
+    background-color: transparent;
+    border-right: none;
+}
+
+.form-control {
+    border-left: none;
+    padding-left: 0;
+}
+
+.form-control:focus {
+    border-color: #dee2e6;
+    box-shadow: none;
+}
+
+.input-group:focus-within .input-group-text {
+    border-color: #86b7fe;
+}
+
+.input-group:focus-within .form-control {
+    border-color: #86b7fe;
+}
+
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding-top: 50px;
+}
+
+.card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+.text-danger {
+    color: #dc3545 !important;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-focus on username field
+document.addEventListener('DOMContentLoaded', function() {
+    const usernameField = document.querySelector('input[name="username"]');
+    if (usernameField) {
+        usernameField.focus();
+    }
+});
+
+// Password confirmation validation
+document.getElementById('id_password2').addEventListener('input', function() {
+    const password1 = document.getElementById('id_password1').value;
+    const password2 = this.value;
+    
+    if (password1 !== password2 && password2.length > 0) {
+        this.setCustomValidity('Passwords do not match');
+        this.classList.add('is-invalid');
+    } else {
+        this.setCustomValidity('');
+        this.classList.remove('is-invalid');
+    }
+});
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const username = document.querySelector('input[name="username"]').value.trim();
+    const password1 = document.querySelector('input[name="password1"]').value;
+    const password2 = document.querySelector('input[name="password2"]').value;
+
+    if (!username) {
+        e.preventDefault();
+        alert('Please enter a username.');
+        return;
+    }
+
+    if (!password1) {
+        e.preventDefault();
+        alert('Please enter a password.');
+        return;
+    }
+
+    if (password1 !== password2) {
+        e.preventDefault();
+        alert('Passwords do not match. Please try again.');
+        return;
+    }
+
+    if (password1.length < 8) {
+        e.preventDefault();
+        alert('Password must be at least 8 characters long.');
+        return;
+    }
+});
+
+// Username validation
+document.getElementById('id_username').addEventListener('input', function() {
+    const username = this.value;
+    const validPattern = /^[\w.@+-]+$/;
+    
+    if (!validPattern.test(username) && username.length > 0) {
+        this.setCustomValidity('Username may only contain letters, numbers, and @/./+/-/_ characters.');
+        this.classList.add('is-invalid');
+    } else {
+        this.setCustomValidity('');
+        this.classList.remove('is-invalid');
+    }
+});
+</script>
+{% endblock %}

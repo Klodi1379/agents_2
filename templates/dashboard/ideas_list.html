@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+
+{% block title %}My Business Ideas - AI Company{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">My Ideas</li>
+{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'dashboard:submit_idea' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> Submit New Idea
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filters and Search -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ search_query }}" placeholder="Search ideas...">
+            </div>
+            <div class="col-md-2">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">All Status</option>
+                    {% for value, display in status_choices %}
+                    <option value="{{ value }}" {% if value == status_filter %}selected{% endif %}>
+                        {{ display }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="industry" class="form-label">Industry</label>
+                <select class="form-select" id="industry" name="industry">
+                    <option value="">All Industries</option>
+                    {% for value, display in industry_choices %}
+                    <option value="{{ value }}" {% if value == industry_filter %}selected{% endif %}>
+                        {{ display }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="order_by" class="form-label">Sort By</label>
+                <select class="form-select" id="order_by" name="order_by">
+                    <option value="-submitted_at" {% if order_by == '-submitted_at' %}selected{% endif %}>
+                        Newest First
+                    </option>
+                    <option value="submitted_at" {% if order_by == 'submitted_at' %}selected{% endif %}>
+                        Oldest First
+                    </option>
+                    <option value="-overall_score" {% if order_by == '-overall_score' %}selected{% endif %}>
+                        Highest Score
+                    </option>
+                    <option value="title" {% if order_by == 'title' %}selected{% endif %}>
+                        Title A-Z
+                    </option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary me-2">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+                <a href="{% url 'dashboard:ideas_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Ideas List -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-lightbulb"></i> Your Business Ideas
+            {% if page_obj.paginator.count %}
+                ({{ page_obj.paginator.count }} total)
+            {% endif %}
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if page_obj %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Industry</th>
+                            <th>Status</th>
+                            <th>Score</th>
+                            <th>Submitted</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for idea in page_obj %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'dashboard:idea_detail' idea.id %}" 
+                                   class="text-decoration-none fw-bold">
+                                    {{ idea.title }}
+                                </a>
+                                <br>
+                                <small class="text-muted">
+                                    {{ idea.description|truncatechars:100 }}
+                                </small>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">
+                                    {{ idea.get_industry_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="status-badge status-{{ idea.status|lower }}">
+                                    {{ idea.get_status_display }}
+                                </span>
+                                {% if idea.status == 'ANALYZING' %}
+                                <br>
+                                <div class="progress mt-1" style="height: 4px;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                         style="width: {{ idea.progress_percentage }}%"></div>
+                                </div>
+                                <small class="text-muted">{{ idea.progress_percentage|floatformat:0 }}%</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if idea.overall_score %}
+                                    <span class="fw-bold text-primary fs-5">{{ idea.overall_score }}</span>
+                                    <small class="text-muted">/100</small>
+                                    {% if idea.recommendation %}
+                                    <br>
+                                    <small class="badge bg-info">{{ idea.get_recommendation_display }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ idea.submitted_at|date:"M d, Y" }}
+                                <br>
+                                <small class="text-muted">{{ idea.submitted_at|time:"H:i" }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'dashboard:idea_detail' idea.id %}" 
+                                       class="btn btn-sm btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if idea.status == 'COMPLETED' %}
+                                    <button class="btn btn-sm btn-outline-success" title="Download Report">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    {% endif %}
+                                    {% if idea.status in 'FAILED,COMPLETED' %}
+                                    <button class="btn btn-sm btn-outline-warning" title="Re-analyze">
+                                        <i class="fas fa-redo"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.industry %}&industry={{ request.GET.industry }}{% endif %}{% if request.GET.order_by %}&order_by={{ request.GET.order_by }}{% endif %}">
+                            &laquo; First
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.industry %}&industry={{ request.GET.industry }}{% endif %}{% if request.GET.order_by %}&order_by={{ request.GET.order_by }}{% endif %}">
+                            &lsaquo; Previous
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.industry %}&industry={{ request.GET.industry }}{% endif %}{% if request.GET.order_by %}&order_by={{ request.GET.order_by }}{% endif %}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.industry %}&industry={{ request.GET.industry }}{% endif %}{% if request.GET.order_by %}&order_by={{ request.GET.order_by }}{% endif %}">
+                            Next &rsaquo;
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.industry %}&industry={{ request.GET.industry }}{% endif %}{% if request.GET.order_by %}&order_by={{ request.GET.order_by }}{% endif %}">
+                            Last &raquo;
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-lightbulb fa-3x text-muted mb-3"></i>
+                <h4>No business ideas yet</h4>
+                <p class="text-muted mb-4">
+                    {% if search_query or status_filter or industry_filter %}
+                        No ideas match your current filters. Try adjusting your search criteria.
+                    {% else %}
+                        You haven't submitted any business ideas yet. Start by submitting your first idea!
+                    {% endif %}
+                </p>
+                {% if not search_query and not status_filter and not industry_filter %}
+                <a href="{% url 'dashboard:submit_idea' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Submit Your First Idea
+                </a>
+                {% else %}
+                <a href="{% url 'dashboard:ideas_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Clear Filters
+                </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh for ideas that are being analyzed
+{% if page_obj %}
+let analyzingIdeas = [
+    {% for idea in page_obj %}
+    {% if idea.status == 'ANALYZING' %}
+    '{{ idea.id }}',
+    {% endif %}
+    {% endfor %}
+];
+
+if (analyzingIdeas.length > 0) {
+    setInterval(function() {
+        // Simple page refresh for analyzing ideas
+        // In a more sophisticated implementation, you'd use AJAX to update individual rows
+        location.reload();
+    }, 30000); // Refresh every 30 seconds
+}
+{% endif %}
+
+// Form auto-submit on filter change (optional)
+document.getElementById('status').addEventListener('change', function() {
+    this.form.submit();
+});
+
+document.getElementById('industry').addEventListener('change', function() {
+    this.form.submit();
+});
+
+document.getElementById('order_by').addEventListener('change', function() {
+    this.form.submit();
+});
+</script>
+{% endblock %}

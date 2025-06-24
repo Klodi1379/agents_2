@@ -1,0 +1,937 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ business_idea.title }} - Analysis Results{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'dashboard:ideas_list' %}">My Ideas</a></li>
+<li class="breadcrumb-item active">{{ business_idea.title|truncatechars:30 }}</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    {% if not is_complete %}
+    <button class="btn btn-outline-secondary" id="refreshBtn" onclick="refreshStatus()">
+        <i class="fas fa-sync-alt"></i> Refresh Status
+    </button>
+    {% endif %}
+    
+    {% if is_complete %}
+    <button class="btn btn-outline-primary" onclick="downloadReport()">
+        <i class="fas fa-download"></i> Download Report
+    </button>
+    <button class="btn btn-outline-success" onclick="shareResults()">
+        <i class="fas fa-share"></i> Share Results
+    </button>
+    {% endif %}
+    
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+            <i class="fas fa-ellipsis-v"></i>
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="#" onclick="duplicateIdea()"><i class="fas fa-copy"></i> Duplicate Idea</a></li>
+            <li><a class="dropdown-item" href="#" onclick="editIdea()"><i class="fas fa-edit"></i> Edit Idea</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-danger" href="#" onclick="deleteIdea()"><i class="fas fa-trash"></i> Delete Idea</a></li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Real-time Status Alert -->
+<div id="statusAlert" class="alert alert-info alert-dismissible fade show d-none" role="alert">
+    <i class="fas fa-info-circle"></i>
+    <span id="statusMessage"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+
+<!-- Business Idea Overview -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-gradient bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Business Idea Overview</h5>
+                    <span class="badge bg-light text-dark">ID: {{ business_idea.id|slice:":8" }}...</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="idea-header mb-4">
+                    <h3 class="idea-title">{{ business_idea.title }}</h3>
+                    <p class="idea-description text-muted">{{ business_idea.description }}</p>
+                </div>
+                
+                <!-- Enhanced Idea Details -->
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="detail-item">
+                            <div class="detail-icon mb-2">
+                                <i class="fas fa-industry fa-lg text-primary"></i>
+                            </div>
+                            <strong class="detail-label">Industry</strong>
+                            <div class="detail-value">
+                                <span class="badge bg-primary">{{ business_idea.get_industry_display }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="detail-item">
+                            <div class="detail-icon mb-2">
+                                <i class="fas fa-users fa-lg text-success"></i>
+                            </div>
+                            <strong class="detail-label">Target Market</strong>
+                            <div class="detail-value">
+                                {{ business_idea.target_market|default:"Not specified" }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="detail-item">
+                            <div class="detail-icon mb-2">
+                                <i class="fas fa-dollar-sign fa-lg text-warning"></i>
+                            </div>
+                            <strong class="detail-label">Estimated Budget</strong>
+                            <div class="detail-value">
+                                {% if business_idea.estimated_budget %}
+                                    <span class="fw-bold text-success">${{ business_idea.estimated_budget|floatformat:0 }}</span>
+                                {% else %}
+                                    <span class="text-muted">Not specified</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Submission Info -->
+                <div class="submission-info mt-4 pt-4 border-top">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar"></i> Submitted: {{ business_idea.submitted_at|date:"F d, Y \a\t H:i" }}
+                            </small>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <small class="text-muted">
+                                <i class="fas fa-clock"></i> Last Updated: <span id="lastUpdated">{{ business_idea.updated_at|timesince }} ago</span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Analysis Status Panel -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-primary">
+            <div class="card-header bg-gradient bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Analysis Status</h5>
+            </div>
+            <div class="card-body text-center">
+                <!-- Current Status Badge -->
+                <div class="mb-3">
+                    <span class="status-badge status-{{ business_idea.status|lower }} fs-6" id="currentStatus">
+                        {{ business_idea.get_status_display }}
+                    </span>
+                </div>
+                
+                <!-- Enhanced Progress Circle -->
+                <div class="progress-circle-container mb-4" style="position: relative; display: inline-block;">
+                    <svg width="140" height="140" class="progress-ring">
+                        <circle cx="70" cy="70" r="60" 
+                                stroke="#e9ecef" stroke-width="8" fill="none"/>
+                        <circle cx="70" cy="70" r="60" 
+                                stroke="#3498db" stroke-width="8" fill="none"
+                                stroke-dasharray="377" 
+                                stroke-dashoffset="{{ 377|floatformat:0|add:0|sub:progress_percentage|mul:3.77 }}"
+                                transform="rotate(-90 70 70)" 
+                                id="progressCircle"
+                                class="progress-ring-circle"/>
+                    </svg>
+                    <div class="progress-text" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                        <div class="progress-percentage" id="progressText">{{ progress_percentage|floatformat:0 }}%</div>
+                        <div class="progress-label small text-muted">Complete</div>
+                    </div>
+                </div>
+                
+                <!-- Score Display -->
+                {% if business_idea.overall_score %}
+                <div class="score-display mb-3">
+                    <div class="score-circle">
+                        <div class="score-number" id="overallScore">{{ business_idea.overall_score }}</div>
+                        <div class="score-label">Score</div>
+                    </div>
+                    <div class="score-details mt-2">
+                        <div class="progress mb-1" style="height: 6px;">
+                            <div class="progress-bar 
+                                {% if business_idea.overall_score >= 80 %}bg-success
+                                {% elif business_idea.overall_score >= 60 %}bg-warning
+                                {% else %}bg-danger{% endif %}" 
+                                style="width: {{ business_idea.overall_score }}%"></div>
+                        </div>
+                        <small class="text-muted">Viability Score (0-100)</small>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Recommendation -->
+                {% if business_idea.recommendation %}
+                <div class="recommendation mb-3">
+                    <span class="badge 
+                        {% if business_idea.recommendation == 'PROCEED' %}bg-success
+                        {% elif business_idea.recommendation == 'CAUTION' %}bg-warning
+                        {% else %}bg-danger{% endif %} fs-6" id="recommendation">
+                        <i class="fas 
+                            {% if business_idea.recommendation == 'PROCEED' %}fa-thumbs-up
+                            {% elif business_idea.recommendation == 'CAUTION' %}fa-exclamation-triangle
+                            {% else %}fa-thumbs-down{% endif %}"></i>
+                        {{ business_idea.get_recommendation_display }}
+                    </span>
+                </div>
+                {% endif %}
+                
+                <!-- Analysis Timeline -->
+                <div class="analysis-timeline">
+                    <div class="timeline-item">
+                        <span class="timeline-point bg-success"></span>
+                        <small>Submitted</small>
+                    </div>
+                    {% if not is_complete %}
+                    <div class="timeline-item">
+                        <span class="timeline-point bg-warning"></span>
+                        <small>Analyzing</small>
+                    </div>
+                    <div class="timeline-item">
+                        <span class="timeline-point bg-secondary"></span>
+                        <small>Finalizing</small>
+                    </div>
+                    {% else %}
+                    <div class="timeline-item">
+                        <span class="timeline-point bg-success"></span>
+                        <small>Completed</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        {% if agent_reports %}
+        <div class="card mt-3 shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-bar"></i> Quick Stats</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="stat-item text-center">
+                            <div class="stat-number text-success">{{ agent_reports|length }}</div>
+                            <div class="stat-label">Reports</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-item text-center">
+                            <div class="stat-number text-primary">6</div>
+                            <div class="stat-label">AI Agents</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<!-- Agent Analysis Progress -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-gradient bg-info text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-users-cog"></i> AI Agent Analysis Progress</h5>
+            <div class="badge bg-light text-dark">{{ completed_reports }}/6 Complete</div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="agent-grid">
+            {% for agent_type, agent_data in reports_by_agent.items %}
+            <div class="agent-card mb-3" data-agent="{{ agent_type }}">
+                <div class="agent-header d-flex align-items-center">
+                    <div class="agent-avatar me-3">
+                        {% if agent_type == 'CEO' %}
+                            <i class="fas fa-crown"></i>
+                        {% elif agent_type == 'MARKET_RESEARCH' %}
+                            <i class="fas fa-chart-bar"></i>
+                        {% elif agent_type == 'FINANCIAL_ANALYST' %}
+                            <i class="fas fa-calculator"></i>
+                        {% elif agent_type == 'TECHNICAL_LEAD' %}
+                            <i class="fas fa-code"></i>
+                        {% elif agent_type == 'RISK_ANALYST' %}
+                            <i class="fas fa-shield-alt"></i>
+                        {% elif agent_type == 'MARKETING_STRATEGIST' %}
+                            <i class="fas fa-bullhorn"></i>
+                        {% endif %}
+                    </div>
+                    <div class="agent-info flex-grow-1">
+                        <h6 class="agent-name mb-1">
+                            {% if agent_type == 'CEO' %}CEO Agent
+                            {% elif agent_type == 'MARKET_RESEARCH' %}Market Research
+                            {% elif agent_type == 'FINANCIAL_ANALYST' %}Financial Analyst
+                            {% elif agent_type == 'TECHNICAL_LEAD' %}Technical Lead
+                            {% elif agent_type == 'RISK_ANALYST' %}Risk Analyst
+                            {% elif agent_type == 'MARKETING_STRATEGIST' %}Marketing Strategist
+                            {% endif %}
+                        </h6>
+                        <small class="agent-role text-muted">
+                            {% if agent_type == 'CEO' %}Strategic Overview & Executive Summary
+                            {% elif agent_type == 'MARKET_RESEARCH' %}Market Analysis & Competitive Intelligence
+                            {% elif agent_type == 'FINANCIAL_ANALYST' %}Financial Modeling & Projections
+                            {% elif agent_type == 'TECHNICAL_LEAD' %}Technical Feasibility & Architecture
+                            {% elif agent_type == 'RISK_ANALYST' %}Risk Assessment & Mitigation
+                            {% elif agent_type == 'MARKETING_STRATEGIST' %}Marketing Strategy & Customer Acquisition
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="agent-status">
+                        {% if agent_data.status == 'COMPLETED' %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check"></i> Complete
+                            </span>
+                        {% elif agent_data.status == 'IN_PROGRESS' %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-spinner fa-spin"></i> Analyzing
+                            </span>
+                        {% elif agent_data.status == 'FAILED' %}
+                            <span class="badge bg-danger">
+                                <i class="fas fa-times"></i> Failed
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="fas fa-clock"></i> Pending
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Agent Progress Bar -->
+                <div class="agent-progress mt-2">
+                    <div class="progress" style="height: 4px;">
+                        {% if agent_data.status == 'COMPLETED' %}
+                            <div class="progress-bar bg-success" style="width: 100%"></div>
+                        {% elif agent_data.status == 'IN_PROGRESS' %}
+                            <div class="progress-bar bg-warning progress-bar-striped progress-bar-animated" style="width: 60%"></div>
+                        {% elif agent_data.status == 'FAILED' %}
+                            <div class="progress-bar bg-danger" style="width: 30%"></div>
+                        {% else %}
+                            <div class="progress-bar bg-secondary" style="width: 10%"></div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Agent Actions -->
+                <div class="agent-actions mt-2">
+                    {% if agent_data.status == 'COMPLETED' %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="agent-score">
+                            {% if agent_data.agent_score %}
+                            <small class="text-success fw-bold">
+                                Score: {{ agent_data.agent_score }}/100
+                            </small>
+                            {% endif %}
+                        </div>
+                        <a href="{% url 'dashboard:agent_report_detail' agent_data.id %}" 
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye"></i> View Report
+                        </a>
+                    </div>
+                    {% elif agent_data.status == 'IN_PROGRESS' %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-warning">
+                            <i class="fas fa-clock"></i> Estimated: 2-5 minutes
+                        </small>
+                        <button class="btn btn-sm btn-outline-secondary" disabled>
+                            <i class="fas fa-hourglass-half"></i> Working...
+                        </button>
+                    </div>
+                    {% elif agent_data.status == 'FAILED' %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-danger">Analysis failed</small>
+                        <button class="btn btn-sm btn-outline-warning" onclick="retryAgent('{{ agent_type }}')">
+                            <i class="fas fa-redo"></i> Retry
+                        </button>
+                    </div>
+                    {% else %}
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">Waiting in queue...</small>
+                        <button class="btn btn-sm btn-outline-secondary" disabled>
+                            <i class="fas fa-clock"></i> Queued
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Final Analysis Report -->
+{% if final_report %}
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-gradient bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-file-alt"></i> Final Analysis Report</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h6>Executive Summary</h6>
+                <p class="mb-3">{{ final_report.executive_summary|truncatewords:50 }}</p>
+                
+                <h6>Key Insights</h6>
+                {% if final_report.key_insights %}
+                <ul class="list-unstyled">
+                    {% for insight in final_report.key_insights|slice:":3" %}
+                    <li class="mb-2">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        {{ insight }}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            <div class="col-md-4">
+                <div class="final-score-display text-center">
+                    <div class="display-4 text-success">{{ final_report.overall_score }}</div>
+                    <div class="text-muted">Final Score</div>
+                    <div class="mt-3">
+                        <a href="#" class="btn btn-success btn-lg">
+                            <i class="fas fa-download"></i> Download Full Report
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Real-time Updates Section -->
+{% if not is_complete %}
+<div class="card bg-light">
+    <div class="card-body text-center">
+        <div class="loading-animation mb-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+        <h6>Analysis in Progress</h6>
+        <p class="text-muted mb-3">
+            Our AI agents are working on your business idea. This page will update automatically as each agent completes their analysis.
+        </p>
+        <div class="auto-refresh-controls">
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" id="autoRefreshStatus" checked>
+                <label class="form-check-label" for="autoRefreshStatus">
+                    Auto-refresh every 10 seconds
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.idea-title {
+    color: #2c3e50;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.idea-description {
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
+
+.detail-item {
+    text-align: center;
+    padding: 1rem;
+    border-radius: 8px;
+    background: #f8f9fa;
+    height: 100%;
+}
+
+.detail-icon {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.detail-label {
+    display: block;
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.detail-value {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.progress-ring-circle {
+    transition: stroke-dashoffset 1s ease-in-out;
+}
+
+.progress-text {
+    text-align: center;
+}
+
+.progress-percentage {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #3498db;
+}
+
+.score-circle {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.score-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.score-label {
+    font-size: 0.7rem;
+    opacity: 0.9;
+}
+
+.analysis-timeline {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.timeline-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 0.75rem;
+}
+
+.timeline-point {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-bottom: 0.5rem;
+}
+
+.stat-item {
+    padding: 0.75rem;
+}
+
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.agent-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.agent-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.3s ease;
+}
+
+.agent-card:hover {
+    border-color: #3498db;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1);
+}
+
+.agent-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.agent-name {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.agent-role {
+    font-size: 0.85rem;
+}
+
+.loading-animation {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    .detail-item {
+        margin-bottom: 1rem;
+    }
+    
+    .progress-circle-container svg {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .agent-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (min-width: 769px) {
+    .agent-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1200px) {
+    .agent-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let statusRefreshInterval;
+let lastUpdatedTime = new Date('{{ business_idea.updated_at|date:"c" }}');
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeRealTimeUpdates();
+    updateProgressAnimation();
+    
+    // Start auto-refresh if analysis is not complete
+    const autoRefreshCheckbox = document.getElementById('autoRefreshStatus');
+    if (autoRefreshCheckbox && autoRefreshCheckbox.checked) {
+        startStatusRefresh();
+    }
+    
+    // Auto-refresh toggle
+    if (autoRefreshCheckbox) {
+        autoRefreshCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                startStatusRefresh();
+            } else {
+                stopStatusRefresh();
+            }
+        });
+    }
+});
+
+function initializeRealTimeUpdates() {
+    // Initialize any real-time components
+    updateLastUpdatedTime();
+    setInterval(updateLastUpdatedTime, 60000); // Update every minute
+}
+
+function updateProgressAnimation() {
+    const progressCircle = document.getElementById('progressCircle');
+    if (progressCircle) {
+        const percentage = {{ progress_percentage }};
+        const circumference = 377; // 2 * PI * 60
+        const offset = circumference - (percentage / 100) * circumference;
+        
+        // Animate the progress
+        progressCircle.style.strokeDashoffset = offset;
+    }
+}
+
+function startStatusRefresh() {
+    if ({{ is_complete|yesno:"true,false" }}) {
+        return; // Don't refresh if already complete
+    }
+    
+    stopStatusRefresh(); // Clear any existing interval
+    
+    statusRefreshInterval = setInterval(async () => {
+        try {
+            const response = await fetch("{% url 'dashboard:idea_status_ajax' business_idea.id %}");
+            const data = await response.json();
+            
+            if (data.is_complete) {
+                // Analysis is complete, reload the page to show final results
+                location.reload();
+                return;
+            }
+            
+            updateStatusDisplay(data);
+            
+        } catch (error) {
+            console.error('Failed to refresh status:', error);
+            showStatusAlert('Failed to refresh status. Please try again.', 'danger');
+        }
+    }, 10000); // Refresh every 10 seconds
+}
+
+function stopStatusRefresh() {
+    if (statusRefreshInterval) {
+        clearInterval(statusRefreshInterval);
+        statusRefreshInterval = null;
+    }
+}
+
+function updateStatusDisplay(data) {
+    // Update status badge
+    const statusElement = document.getElementById('currentStatus');
+    if (statusElement) {
+        statusElement.textContent = data.status.replace('_', ' ').toUpperCase();
+        statusElement.className = `status-badge status-${data.status.toLowerCase()} fs-6`;
+    }
+    
+    // Update progress circle
+    const progressText = document.getElementById('progressText');
+    const progressCircle = document.getElementById('progressCircle');
+    
+    if (progressText && progressCircle) {
+        progressText.textContent = Math.round(data.progress_percentage) + '%';
+        
+        const circumference = 377;
+        const offset = circumference - (data.progress_percentage / 100) * circumference;
+        progressCircle.style.strokeDashoffset = offset;
+    }
+    
+    // Update overall score if available
+    if (data.overall_score && document.getElementById('overallScore')) {
+        document.getElementById('overallScore').textContent = data.overall_score;
+    }
+    
+    // Update recommendation if available
+    if (data.recommendation && document.getElementById('recommendation')) {
+        const recElement = document.getElementById('recommendation');
+        recElement.textContent = data.recommendation.replace('_', ' ');
+        // Update classes based on recommendation
+        recElement.className = `badge fs-6 ${
+            data.recommendation === 'PROCEED' ? 'bg-success' :
+            data.recommendation === 'CAUTION' ? 'bg-warning' : 'bg-danger'
+        }`;
+    }
+    
+    // Update agent status
+    updateAgentStatus(data.agent_status);
+    
+    // Update last updated time
+    lastUpdatedTime = new Date();
+    updateLastUpdatedTime();
+}
+
+function updateAgentStatus(agentStatus) {
+    Object.entries(agentStatus).forEach(([agentType, status]) => {
+        const agentCard = document.querySelector(`[data-agent="${agentType}"]`);
+        if (!agentCard) return;
+        
+        const statusBadge = agentCard.querySelector('.agent-status .badge');
+        const progressBar = agentCard.querySelector('.progress-bar');
+        const actionButton = agentCard.querySelector('.agent-actions button, .agent-actions a');
+        
+        // Update status badge
+        if (statusBadge) {
+            let badgeClass, badgeIcon, badgeText;
+            
+            switch (status.status) {
+                case 'COMPLETED':
+                    badgeClass = 'bg-success';
+                    badgeIcon = 'fa-check';
+                    badgeText = 'Complete';
+                    break;
+                case 'IN_PROGRESS':
+                    badgeClass = 'bg-warning';
+                    badgeIcon = 'fa-spinner fa-spin';
+                    badgeText = 'Analyzing';
+                    break;
+                case 'FAILED':
+                    badgeClass = 'bg-danger';
+                    badgeIcon = 'fa-times';
+                    badgeText = 'Failed';
+                    break;
+                default:
+                    badgeClass = 'bg-secondary';
+                    badgeIcon = 'fa-clock';
+                    badgeText = 'Pending';
+            }
+            
+            statusBadge.className = `badge ${badgeClass}`;
+            statusBadge.innerHTML = `<i class="fas ${badgeIcon}"></i> ${badgeText}`;
+        }
+        
+        // Update progress bar
+        if (progressBar) {
+            let width, className;
+            
+            switch (status.status) {
+                case 'COMPLETED':
+                    width = '100%';
+                    className = 'progress-bar bg-success';
+                    break;
+                case 'IN_PROGRESS':
+                    width = '60%';
+                    className = 'progress-bar bg-warning progress-bar-striped progress-bar-animated';
+                    break;
+                case 'FAILED':
+                    width = '30%';
+                    className = 'progress-bar bg-danger';
+                    break;
+                default:
+                    width = '10%';
+                    className = 'progress-bar bg-secondary';
+            }
+            
+            progressBar.style.width = width;
+            progressBar.className = className;
+        }
+    });
+}
+
+function updateLastUpdatedTime() {
+    const lastUpdatedElement = document.getElementById('lastUpdated');
+    if (lastUpdatedElement) {
+        const now = new Date();
+        const diffMs = now - lastUpdatedTime;
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        let timeText;
+        if (diffMins < 1) {
+            timeText = 'Just now';
+        } else if (diffMins === 1) {
+            timeText = '1 minute ago';
+        } else if (diffMins < 60) {
+            timeText = `${diffMins} minutes ago`;
+        } else {
+            const diffHours = Math.floor(diffMins / 60);
+            timeText = diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+        }
+        
+        lastUpdatedElement.textContent = timeText;
+    }
+}
+
+function refreshStatus() {
+    const btn = document.getElementById('refreshBtn');
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+    btn.disabled = true;
+    
+    fetch("{% url 'dashboard:idea_status_ajax' business_idea.id %}")
+        .then(response => response.json())
+        .then(data => {
+            if (data.is_complete) {
+                location.reload();
+            } else {
+                updateStatusDisplay(data);
+                showStatusAlert('Status updated successfully!', 'success');
+            }
+        })
+        .catch(error => {
+            console.error('Refresh failed:', error);
+            showStatusAlert('Failed to refresh status. Please try again.', 'danger');
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+}
+
+function showStatusAlert(message, type = 'info') {
+    const alertElement = document.getElementById('statusAlert');
+    const messageElement = document.getElementById('statusMessage');
+    
+    alertElement.className = `alert alert-${type} alert-dismissible fade show`;
+    messageElement.textContent = message;
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        if (alertElement.classList.contains('show')) {
+            alertElement.classList.remove('show');
+        }
+    }, 5000);
+}
+
+function retryAgent(agentType) {
+    // TODO: Implement agent retry functionality
+    showStatusAlert(`Retrying ${agentType} analysis...`, 'info');
+}
+
+function downloadReport() {
+    // TODO: Implement report download
+    showStatusAlert('Report download will be available soon!', 'info');
+}
+
+function shareResults() {
+    // TODO: Implement results sharing
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ business_idea.title }}',
+            text: 'Check out my AI business analysis results!',
+            url: window.location.href
+        });
+    } else {
+        // Fallback: copy link to clipboard
+        navigator.clipboard.writeText(window.location.href);
+        showStatusAlert('Link copied to clipboard!', 'success');
+    }
+}
+
+function duplicateIdea() {
+    // TODO: Implement idea duplication
+    showStatusAlert('Idea duplication coming soon!', 'info');
+}
+
+function editIdea() {
+    // TODO: Implement idea editing
+    showStatusAlert('Idea editing coming soon!', 'info');
+}
+
+function deleteIdea() {
+    if (confirm('Are you sure you want to delete this idea? This action cannot be undone.')) {
+        // TODO: Implement idea deletion
+        showStatusAlert('Idea deletion coming soon!', 'info');
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    stopStatusRefresh();
+});
+</script>
+{% endblock %}

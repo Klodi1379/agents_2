@@ -1,0 +1,1181 @@
+{% extends 'base.html' %}
+
+{% block title %}Submit New Business Idea - AI Company{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:dashboard' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Submit New Idea</li>
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <button type="button" class="btn btn-outline-secondary" onclick="saveDraft()">
+        <i class="fas fa-save"></i> Save Draft
+    </button>
+    <button type="button" class="btn btn-outline-info" onclick="showIdeaHelper()">
+        <i class="fas fa-question-circle"></i> Need Help?
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Progress Steps -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <div class="step-progress">
+            <div class="step-item active" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-label">Basic Info</div>
+            </div>
+            <div class="step-item" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-label">Details</div>
+            </div>
+            <div class="step-item" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-label">Review</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Form -->
+<form id="ideaSubmissionForm" method="post" novalidate>
+    {% csrf_token %}
+    
+    <!-- Step 1: Basic Information -->
+    <div class="step-content" id="step1">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-gradient bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-lightbulb"></i> Tell Us About Your Business Idea</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Title Field -->
+                        <div class="mb-4">
+                            <label for="title" class="form-label fw-bold">
+                                Business Idea Title <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control form-control-lg" 
+                                   id="title" 
+                                   name="title" 
+                                   placeholder="e.g., AI-Powered Personal Fitness Coach App"
+                                   maxlength="200"
+                                   required>
+                            <div class="form-text">
+                                <span id="titleCounter">0</span>/200 characters
+                            </div>
+                            <div class="invalid-feedback">
+                                Please provide a descriptive title for your business idea.
+                            </div>
+                        </div>
+                        
+                        <!-- Description Field -->
+                        <div class="mb-4">
+                            <label for="description" class="form-label fw-bold">
+                                Detailed Description <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" 
+                                      id="description" 
+                                      name="description" 
+                                      rows="6"
+                                      placeholder="Describe your business idea in detail. What problem does it solve? Who is your target audience? What makes it unique?"
+                                      minlength="20"
+                                      maxlength="2000"
+                                      required></textarea>
+                            <div class="form-text">
+                                <span id="descriptionCounter">0</span>/2000 characters (minimum 20 characters)
+                            </div>
+                            <div class="invalid-feedback">
+                                Please provide a detailed description (at least 20 characters).
+                            </div>
+                        </div>
+                        
+                        <!-- Industry Selection -->
+                        <div class="mb-4">
+                            <label for="industry" class="form-label fw-bold">
+                                Industry Category <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="industry" name="industry" required>
+                                <option value="">Choose an industry...</option>
+                                {% for value, label in industry_choices %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">
+                                Please select an industry category.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar: Tips and Suggestions -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-info">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i class="fas fa-tips"></i> Tips for a Great Submission</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="tip-item mb-3">
+                            <div class="tip-icon">
+                                <i class="fas fa-bullseye text-primary"></i>
+                            </div>
+                            <div class="tip-content">
+                                <h6>Be Specific</h6>
+                                <p class="small text-muted">Clearly define the problem you're solving and your target market.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="tip-item mb-3">
+                            <div class="tip-icon">
+                                <i class="fas fa-chart-line text-success"></i>
+                            </div>
+                            <div class="tip-content">
+                                <h6>Show Value</h6>
+                                <p class="small text-muted">Explain what makes your idea unique and valuable.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="tip-item mb-3">
+                            <div class="tip-icon">
+                                <i class="fas fa-users text-warning"></i>
+                            </div>
+                            <div class="tip-content">
+                                <h6>Define Audience</h6>
+                                <p class="small text-muted">Be clear about who your customers will be.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="tip-item">
+                            <div class="tip-icon">
+                                <i class="fas fa-cogs text-info"></i>
+                            </div>
+                            <div class="tip-content">
+                                <h6>Consider Feasibility</h6>
+                                <p class="small text-muted">Think about technical and financial requirements.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI Writing Assistant -->
+                <div class="card mt-3 shadow-sm border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0"><i class="fas fa-robot"></i> AI Writing Assistant</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="small">Need help describing your idea? Our AI can help you improve your description.</p>
+                        <button type="button" class="btn btn-sm btn-outline-warning w-100" onclick="openAIAssistant()">
+                            <i class="fas fa-magic"></i> Improve Description
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Navigation -->
+        <div class="d-flex justify-content-end mt-4">
+            <button type="button" class="btn btn-primary btn-lg" onclick="nextStep()">
+                Next Step <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Step 2: Additional Details -->
+    <div class="step-content d-none" id="step2">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-gradient bg-secondary text-white">
+                        <h5 class="mb-0"><i class="fas fa-cogs"></i> Additional Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Target Market -->
+                        <div class="mb-4">
+                            <label for="target_market" class="form-label fw-bold">
+                                Target Market
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="target_market" 
+                                   name="target_market" 
+                                   placeholder="e.g., Health-conscious millennials, Small business owners, Tech startups"
+                                   maxlength="500">
+                            <div class="form-text">
+                                Describe your primary target audience and market segment.
+                            </div>
+                        </div>
+                        
+                        <!-- Estimated Budget -->
+                        <div class="mb-4">
+                            <label for="estimated_budget" class="form-label fw-bold">
+                                Estimated Budget (USD)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="estimated_budget" 
+                                       name="estimated_budget" 
+                                       placeholder="0"
+                                       min="0"
+                                       step="1000">
+                            </div>
+                            <div class="form-text">
+                                Approximate budget for developing and launching your business idea.
+                            </div>
+                        </div>
+                        
+                        <!-- Business Model -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Revenue Model</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="subscription" id="model_subscription">
+                                        <label class="form-check-label" for="model_subscription">
+                                            Subscription
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="one_time" id="model_one_time">
+                                        <label class="form-check-label" for="model_one_time">
+                                            One-time Purchase
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="freemium" id="model_freemium">
+                                        <label class="form-check-label" for="model_freemium">
+                                            Freemium
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="advertising" id="model_advertising">
+                                        <label class="form-check-label" for="model_advertising">
+                                            Advertising
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="commission" id="model_commission">
+                                        <label class="form-check-label" for="model_commission">
+                                            Commission
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" value="other" id="model_other">
+                                        <label class="form-check-label" for="model_other">
+                                            Other
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Timeline -->
+                        <div class="mb-4">
+                            <label for="timeline" class="form-label fw-bold">Expected Timeline to Launch</label>
+                            <select class="form-select" id="timeline" name="timeline">
+                                <option value="">Select timeline...</option>
+                                <option value="1-3 months">1-3 months</option>
+                                <option value="3-6 months">3-6 months</option>
+                                <option value="6-12 months">6-12 months</option>
+                                <option value="1-2 years">1-2 years</option>
+                                <option value="2+ years">2+ years</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Competition -->
+                        <div class="mb-4">
+                            <label for="competition" class="form-label fw-bold">Known Competitors</label>
+                            <textarea class="form-control" 
+                                      id="competition" 
+                                      name="competition" 
+                                      rows="3"
+                                      placeholder="List any known competitors or similar solutions in the market..."
+                                      maxlength="1000"></textarea>
+                            <div class="form-text">
+                                <span id="competitionCounter">0</span>/1000 characters
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Analysis Preview -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="fas fa-search"></i> What We'll Analyze</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="analysis-preview">
+                            <div class="preview-item mb-3">
+                                <div class="preview-icon">
+                                    <i class="fas fa-chart-bar text-primary"></i>
+                                </div>
+                                <div class="preview-content">
+                                    <h6>Market Research</h6>
+                                    <small class="text-muted">Market size, trends, and competitive landscape</small>
+                                </div>
+                            </div>
+                            
+                            <div class="preview-item mb-3">
+                                <div class="preview-icon">
+                                    <i class="fas fa-calculator text-success"></i>
+                                </div>
+                                <div class="preview-content">
+                                    <h6>Financial Analysis</h6>
+                                    <small class="text-muted">Revenue projections and cost analysis</small>
+                                </div>
+                            </div>
+                            
+                            <div class="preview-item mb-3">
+                                <div class="preview-icon">
+                                    <i class="fas fa-code text-info"></i>
+                                </div>
+                                <div class="preview-content">
+                                    <h6>Technical Feasibility</h6>
+                                    <small class="text-muted">Technology requirements and implementation</small>
+                                </div>
+                            </div>
+                            
+                            <div class="preview-item mb-3">
+                                <div class="preview-icon">
+                                    <i class="fas fa-shield-alt text-warning"></i>
+                                </div>
+                                <div class="preview-content">
+                                    <h6>Risk Assessment</h6>
+                                    <small class="text-muted">Potential risks and mitigation strategies</small>
+                                </div>
+                            </div>
+                            
+                            <div class="preview-item">
+                                <div class="preview-icon">
+                                    <i class="fas fa-bullhorn text-danger"></i>
+                                </div>
+                                <div class="preview-content">
+                                    <h6>Marketing Strategy</h6>
+                                    <small class="text-muted">Go-to-market and customer acquisition</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Estimated Analysis Time -->
+                <div class="card mt-3 shadow-sm border-info">
+                    <div class="card-body text-center">
+                        <i class="fas fa-clock fa-2x text-info mb-2"></i>
+                        <h6>Estimated Analysis Time</h6>
+                        <div class="display-6 text-info">5-15</div>
+                        <div class="text-muted">minutes</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Navigation -->
+        <div class="d-flex justify-content-between mt-4">
+            <button type="button" class="btn btn-outline-secondary btn-lg" onclick="prevStep()">
+                <i class="fas fa-arrow-left"></i> Previous
+            </button>
+            <button type="button" class="btn btn-primary btn-lg" onclick="nextStep()">
+                Review & Submit <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>    
+    <!-- Step 3: Review and Submit -->
+    <div class="step-content d-none" id="step3">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-gradient bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-eye"></i> Review Your Submission</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="review-section">
+                            <h6 class="border-bottom pb-2 mb-3">Basic Information</h6>
+                            <div class="row mb-3">
+                                <div class="col-sm-4"><strong>Title:</strong></div>
+                                <div class="col-sm-8" id="review-title">-</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-sm-4"><strong>Industry:</strong></div>
+                                <div class="col-sm-8" id="review-industry">-</div>
+                            </div>
+                            <div class="row mb-4">
+                                <div class="col-sm-4"><strong>Description:</strong></div>
+                                <div class="col-sm-8" id="review-description">-</div>
+                            </div>
+                            
+                            <h6 class="border-bottom pb-2 mb-3">Additional Details</h6>
+                            <div class="row mb-3">
+                                <div class="col-sm-4"><strong>Target Market:</strong></div>
+                                <div class="col-sm-8" id="review-target-market">-</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-sm-4"><strong>Budget:</strong></div>
+                                <div class="col-sm-8" id="review-budget">-</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-sm-4"><strong>Timeline:</strong></div>
+                                <div class="col-sm-8" id="review-timeline">-</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-sm-4"><strong>Revenue Model:</strong></div>
+                                <div class="col-sm-8" id="review-revenue-model">-</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Terms and Conditions -->
+                        <div class="terms-section mt-4 pt-4 border-top">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+                                <label class="form-check-label" for="agreeTerms">
+                                    I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">Terms of Service</a> 
+                                    and <a href="#" data-bs-toggle="modal" data-bs-target="#privacyModal">Privacy Policy</a>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Analysis Agreement -->
+                        <div class="analysis-agreement mt-3 p-3 bg-light rounded">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="agreeAnalysis" required>
+                                <label class="form-check-label" for="agreeAnalysis">
+                                    I understand that this analysis is for informational purposes only and should not be 
+                                    considered as professional business or financial advice.
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Submission Summary -->
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-success">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="fas fa-rocket"></i> Ready to Launch Analysis</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="launch-animation mb-3">
+                            <i class="fas fa-rocket fa-3x text-success"></i>
+                        </div>
+                        <h6>Your idea will be analyzed by:</h6>
+                        <div class="agent-list mt-3">
+                            <div class="agent-item">
+                                <i class="fas fa-crown text-warning"></i> CEO Agent
+                            </div>
+                            <div class="agent-item">
+                                <i class="fas fa-chart-bar text-primary"></i> Market Research
+                            </div>
+                            <div class="agent-item">
+                                <i class="fas fa-calculator text-success"></i> Financial Analyst
+                            </div>
+                            <div class="agent-item">
+                                <i class="fas fa-code text-info"></i> Technical Lead
+                            </div>
+                            <div class="agent-item">
+                                <i class="fas fa-shield-alt text-danger"></i> Risk Analyst
+                            </div>
+                            <div class="agent-item">
+                                <i class="fas fa-bullhorn text-purple"></i> Marketing Strategist
+                            </div>
+                        </div>
+                        
+                        <div class="analysis-time mt-4 p-3 bg-light rounded">
+                            <i class="fas fa-clock text-info"></i>
+                            <strong>Estimated Time: 5-15 minutes</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contact Support -->
+                <div class="card mt-3 shadow-sm">
+                    <div class="card-body text-center">
+                        <h6>Need Help?</h6>
+                        <p class="small text-muted">Our support team is here to help you get the most out of your analysis.</p>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="contactSupport()">
+                            <i class="fas fa-headset"></i> Contact Support
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Navigation -->
+        <div class="d-flex justify-content-between mt-4">
+            <button type="button" class="btn btn-outline-secondary btn-lg" onclick="prevStep()">
+                <i class="fas fa-arrow-left"></i> Previous
+            </button>
+            <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                <i class="fas fa-rocket"></i> Submit for Analysis
+            </button>
+        </div>
+    </div>
+</form>
+
+<!-- Modals -->
+<!-- Terms of Service Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Terms of Service</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>By using our AI business analysis service, you agree to the following terms...</p>
+                <!-- Add your terms content here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Privacy Policy Modal -->
+<div class="modal fade" id="privacyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Privacy Policy</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Your privacy is important to us. This policy explains how we collect and use your data...</p>
+                <!-- Add your privacy policy content here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Assistant Modal -->
+<div class="modal fade" id="aiAssistantModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-robot"></i> AI Writing Assistant</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="ai-assistant-content">
+                    <p>Our AI can help improve your business idea description. Click the button below to get suggestions.</p>
+                    
+                    <div class="form-group mb-3">
+                        <label for="aiInputText" class="form-label">Current Description:</label>
+                        <textarea class="form-control" id="aiInputText" rows="4" readonly></textarea>
+                    </div>
+                    
+                    <div class="text-center mb-3">
+                        <button type="button" class="btn btn-primary" onclick="getAISuggestions()">
+                            <i class="fas fa-magic"></i> Get AI Suggestions
+                        </button>
+                    </div>
+                    
+                    <div id="aiSuggestions" class="d-none">
+                        <label class="form-label">AI Suggestions:</label>
+                        <div class="ai-suggestions-content p-3 bg-light rounded">
+                            <div id="aiSuggestionsText"></div>
+                        </div>
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-success" onclick="applyAISuggestions()">
+                                <i class="fas fa-check"></i> Apply Suggestions
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="getAISuggestions()">
+                                <i class="fas fa-redo"></i> Get New Suggestions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.step-progress {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 3rem;
+    padding: 1rem 0;
+}
+
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.step-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 100%;
+    width: 3rem;
+    height: 2px;
+    background: #dee2e6;
+    z-index: 1;
+}
+
+.step-item.active:not(:last-child)::after {
+    background: #3498db;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #dee2e6;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    position: relative;
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+.step-item.active .step-number {
+    background: #3498db;
+    color: white;
+}
+
+.step-item.completed .step-number {
+    background: #28a745;
+    color: white;
+}
+
+.step-label {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.step-item.active .step-label {
+    color: #3498db;
+    font-weight: 600;
+}
+
+.tip-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.tip-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 0.25rem;
+}
+
+.tip-content h6 {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.preview-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.preview-icon {
+    width: 35px;
+    height: 35px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.preview-content h6 {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+    color: #2c3e50;
+}
+
+.agent-list {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.agent-item {
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    text-align: left;
+}
+
+.launch-animation {
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-10px);
+    }
+    60% {
+        transform: translateY(-5px);
+    }
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.15);
+}
+
+.form-control.is-valid {
+    border-color: #28a745;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='m2.3 6.73.94-.94 3.11-3.11.94.94L3.24 7.67z'/%3e%3c/svg%3e");
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath d='m5.8 5.8 4.4 4.4M10.2 5.8l-4.4 4.4'/%3e%3c/svg%3e");
+}
+
+.character-counter {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.character-counter.warning {
+    color: #f39c12;
+}
+
+.character-counter.danger {
+    color: #e74c3c;
+}
+
+.text-purple {
+    color: #6f42c1 !important;
+}
+
+.review-section {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.ai-suggestions-content {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+    .step-progress {
+        gap: 1rem;
+    }
+    
+    .step-item:not(:last-child)::after {
+        width: 1rem;
+    }
+    
+    .step-label {
+        font-size: 0.75rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentStep = 1;
+let formData = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeForm();
+    setupCharacterCounters();
+    setupFormValidation();
+    loadDraftIfExists();
+});
+
+function initializeForm() {
+    // Set up form event listeners
+    document.getElementById('ideaSubmissionForm').addEventListener('submit', handleFormSubmit);
+    
+    // Set up character counters
+    setupCharacterCounters();
+    
+    // Set up auto-save
+    setInterval(saveDraft, 30000); // Auto-save every 30 seconds
+}
+
+function setupCharacterCounters() {
+    const fields = [
+        { id: 'title', counter: 'titleCounter', max: 200 },
+        { id: 'description', counter: 'descriptionCounter', max: 2000 },
+        { id: 'competition', counter: 'competitionCounter', max: 1000 }
+    ];
+    
+    fields.forEach(field => {
+        const input = document.getElementById(field.id);
+        const counter = document.getElementById(field.counter);
+        
+        if (input && counter) {
+            input.addEventListener('input', function() {
+                const length = this.value.length;
+                counter.textContent = length;
+                
+                // Add warning/danger classes
+                counter.className = 'character-counter';
+                if (length > field.max * 0.8) {
+                    counter.className += ' warning';
+                }
+                if (length > field.max * 0.95) {
+                    counter.className += ' danger';
+                }
+                
+                // Validate field
+                validateField(this);
+            });
+        }
+    });
+}
+
+function setupFormValidation() {
+    const form = document.getElementById('ideaSubmissionForm');
+    const inputs = form.querySelectorAll('input[required], textarea[required], select[required]');
+    
+    inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            validateField(this);
+        });
+        
+        input.addEventListener('input', function() {
+            if (this.classList.contains('is-invalid')) {
+                validateField(this);
+            }
+        });
+    });
+}
+
+function validateField(field) {
+    const isValid = field.checkValidity();
+    
+    field.classList.remove('is-valid', 'is-invalid');
+    
+    if (field.value.trim() !== '') {
+        if (isValid) {
+            field.classList.add('is-valid');
+        } else {
+            field.classList.add('is-invalid');
+        }
+    }
+    
+    return isValid;
+}
+
+function validateStep(step) {
+    let isValid = true;
+    const stepContent = document.getElementById(`step${step}`);
+    const requiredFields = stepContent.querySelectorAll('input[required], textarea[required], select[required]');
+    
+    requiredFields.forEach(field => {
+        if (!validateField(field)) {
+            isValid = false;
+        }
+    });
+    
+    return isValid;
+}
+
+function nextStep() {
+    if (!validateStep(currentStep)) {
+        showAlert('Please fill in all required fields correctly before proceeding.', 'warning');
+        return;
+    }
+    
+    if (currentStep < 3) {
+        // Save current step data
+        saveStepData(currentStep);
+        
+        // Hide current step
+        document.getElementById(`step${currentStep}`).classList.add('d-none');
+        
+        // Update step indicator
+        document.querySelector(`[data-step="${currentStep}"]`).classList.remove('active');
+        document.querySelector(`[data-step="${currentStep}"]`).classList.add('completed');
+        
+        // Show next step
+        currentStep++;
+        document.getElementById(`step${currentStep}`).classList.remove('d-none');
+        document.querySelector(`[data-step="${currentStep}"]`).classList.add('active');
+        
+        // Special handling for step 3 (review)
+        if (currentStep === 3) {
+            populateReview();
+        }
+        
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+function prevStep() {
+    if (currentStep > 1) {
+        // Hide current step
+        document.getElementById(`step${currentStep}`).classList.add('d-none');
+        
+        // Update step indicator
+        document.querySelector(`[data-step="${currentStep}"]`).classList.remove('active');
+        
+        // Show previous step
+        currentStep--;
+        document.getElementById(`step${currentStep}`).classList.remove('d-none');
+        document.querySelector(`[data-step="${currentStep}"]`).classList.add('active');
+        document.querySelector(`[data-step="${currentStep}"]`).classList.remove('completed');
+        
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+function saveStepData(step) {
+    const stepContent = document.getElementById(`step${step}`);
+    const inputs = stepContent.querySelectorAll('input, textarea, select');
+    
+    inputs.forEach(input => {
+        if (input.type === 'checkbox') {
+            formData[input.id] = input.checked;
+        } else {
+            formData[input.id] = input.value;
+        }
+    });
+    
+    // Save revenue model checkboxes
+    const revenueModels = [];
+    document.querySelectorAll('input[id^="model_"]:checked').forEach(checkbox => {
+        revenueModels.push(checkbox.value);
+    });
+    formData.revenueModels = revenueModels;
+}
+
+function populateReview() {
+    // Save current step data first
+    saveStepData(2);
+    
+    // Populate review fields
+    document.getElementById('review-title').textContent = formData.title || '-';
+    
+    const industrySelect = document.getElementById('industry');
+    const selectedOption = industrySelect.options[industrySelect.selectedIndex];
+    document.getElementById('review-industry').textContent = selectedOption ? selectedOption.text : '-';
+    
+    document.getElementById('review-description').textContent = formData.description || '-';
+    document.getElementById('review-target-market').textContent = formData.target_market || '-';
+    
+    const budget = formData.estimated_budget;
+    document.getElementById('review-budget').textContent = budget ? `$${parseInt(budget).toLocaleString()}` : 'Not specified';
+    
+    document.getElementById('review-timeline').textContent = formData.timeline || 'Not specified';
+    
+    const revenueModels = formData.revenueModels || [];
+    document.getElementById('review-revenue-model').textContent = revenueModels.length > 0 ? revenueModels.join(', ') : 'Not specified';
+}
+
+function handleFormSubmit(event) {
+    event.preventDefault();
+    
+    // Validate all required checkboxes in step 3
+    const agreeTerms = document.getElementById('agreeTerms').checked;
+    const agreeAnalysis = document.getElementById('agreeAnalysis').checked;
+    
+    if (!agreeTerms || !agreeAnalysis) {
+        showAlert('Please agree to the terms and conditions to proceed.', 'warning');
+        return;
+    }
+    
+    // Save final step data
+    saveStepData(3);
+    
+    // Show loading state
+    const submitBtn = document.getElementById('submitBtn');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+    submitBtn.disabled = true;
+    
+    // Simulate form submission (replace with actual form submission)
+    setTimeout(() => {
+        // Clear saved draft
+        clearDraft();
+        
+        // Submit the actual form
+        document.getElementById('ideaSubmissionForm').submit();
+    }, 2000);
+}
+
+function saveDraft() {
+    saveStepData(currentStep);
+    localStorage.setItem('ideaFormDraft', JSON.stringify({
+        formData: formData,
+        currentStep: currentStep,
+        timestamp: Date.now()
+    }));
+}
+
+function loadDraftIfExists() {
+    const draft = localStorage.getItem('ideaFormDraft');
+    if (draft) {
+        try {
+            const draftData = JSON.parse(draft);
+            
+            // Check if draft is not too old (24 hours)
+            if (Date.now() - draftData.timestamp < 24 * 60 * 60 * 1000) {
+                if (confirm('We found a saved draft of your idea. Would you like to restore it?')) {
+                    restoreDraft(draftData);
+                }
+            } else {
+                clearDraft();
+            }
+        } catch (e) {
+            clearDraft();
+        }
+    }
+}
+
+function restoreDraft(draftData) {
+    formData = draftData.formData;
+    
+    // Restore form fields
+    Object.entries(formData).forEach(([key, value]) => {
+        const field = document.getElementById(key);
+        if (field) {
+            if (field.type === 'checkbox') {
+                field.checked = value;
+            } else {
+                field.value = value;
+            }
+        }
+    });
+    
+    // Restore revenue model checkboxes
+    if (formData.revenueModels) {
+        formData.revenueModels.forEach(model => {
+            const checkbox = document.getElementById(`model_${model}`);
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+        });
+    }
+    
+    // Update character counters
+    setupCharacterCounters();
+    
+    showAlert('Draft restored successfully!', 'success');
+}
+
+function clearDraft() {
+    localStorage.removeItem('ideaFormDraft');
+}
+
+function openAIAssistant() {
+    const description = document.getElementById('description').value;
+    document.getElementById('aiInputText').value = description;
+    
+    const modal = new bootstrap.Modal(document.getElementById('aiAssistantModal'));
+    modal.show();
+}
+
+function getAISuggestions() {
+    const suggestionsDiv = document.getElementById('aiSuggestions');
+    const suggestionsText = document.getElementById('aiSuggestionsText');
+    
+    // Show loading
+    suggestionsText.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Generating suggestions...</div>';
+    suggestionsDiv.classList.remove('d-none');
+    
+    // Simulate AI suggestions (replace with actual AI API call)
+    setTimeout(() => {
+        const suggestions = generateMockSuggestions();
+        suggestionsText.innerHTML = suggestions;
+    }, 2000);
+}
+
+function generateMockSuggestions() {
+    const suggestions = [
+        "Consider adding more specific details about your target demographic",
+        "Highlight the unique value proposition that sets you apart from competitors", 
+        "Include potential revenue streams and business model details",
+        "Mention any existing market validation or customer feedback",
+        "Describe the technology stack or resources required for implementation"
+    ];
+    
+    return suggestions.map(suggestion => 
+        `<div class="suggestion-item mb-2">
+            <i class="fas fa-lightbulb text-warning me-2"></i>
+            ${suggestion}
+        </div>`
+    ).join('');
+}
+
+function applyAISuggestions() {
+    // This would typically apply AI-generated improvements to the description
+    showAlert('AI suggestions applied! Please review and adjust as needed.', 'success');
+    
+    const modal = bootstrap.Modal.getInstance(document.getElementById('aiAssistantModal'));
+    modal.hide();
+}
+
+function showAlert(message, type = 'info') {
+    // Create and show a toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 5000);
+}
+
+function contactSupport() {
+    // TODO: Implement contact support functionality
+    showAlert('Support contact feature coming soon!', 'info');
+}
+
+function showIdeaHelper() {
+    // TODO: Show idea helper modal or sidebar
+    showAlert('Idea helper coming soon!', 'info');
+}
+</script>
+{% endblock %}
