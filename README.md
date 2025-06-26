@@ -1,4 +1,4 @@
-AI Company - Autonomous Business Analysis Platform
+AI Company -- Autonomous Business Analysis Platform
 A revolutionary platform that uses artificial intelligence agents to analyze and evaluate business ideas. Built with Django and powered by a virtual team of AI agents that simulate a real analytics company.
 🌟 Key Features
 🏢 Autonomous AI Company
